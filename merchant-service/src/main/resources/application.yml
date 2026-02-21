@@ -52,6 +52,9 @@ eureka:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${server.port}
 
+jwt:
+  secret: my-super-secret-key-for-jwt-token-generation-minimum-256-bits
+
 logging:
   level:
     root: INFO

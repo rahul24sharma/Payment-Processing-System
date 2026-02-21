@@ -4,6 +4,22 @@ spring:
 
   cloud:
     gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+              - "http://localhost:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
       routes:
         # Payment Service Routes
         - id: payment-service
@@ -34,6 +50,18 @@ spring:
           uri: lb://merchant-service
           predicates:
             - Path=/api/v1/merchants/**
+          filters:
+            - StripPrefix=0
+            - name: CircuitBreaker
+              args:
+                name: merchantServiceCB
+                fallbackUri: forward:/fallback/merchant
+
+        # Auth Routes (merchant-service)
+        - id: auth-service
+          uri: lb://merchant-service
+          predicates:
+            - Path=/api/v1/auth/**
           filters:
             - StripPrefix=0
             - name: CircuitBreaker

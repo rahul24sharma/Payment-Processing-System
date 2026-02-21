@@ -2,9 +2,6 @@ spring:
   application:
     name: payment-service
 
-  jackson:
-    property-naming-strategy: SNAKE_CASE
-  
   # Database Configuration - Payment Database
   datasource:
     url: jdbc:postgresql://localhost:5432/payment_db
@@ -58,6 +55,9 @@ eureka:
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${server.port}
+
+jwt:
+  secret: my-super-secret-key-for-jwt-token-generation-minimum-256-bits
 
 # Logging
 logging:

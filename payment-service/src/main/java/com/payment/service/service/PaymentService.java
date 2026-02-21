@@ -37,7 +37,7 @@ public class PaymentService {
     /**
      * Creates a new payment with idempotency guarantee
      */
-    public Payment createPayment(CreatePaymentRequest request, String idempotencyKey) {
+    public Payment createPayment(CreatePaymentRequest request, String idempotencyKey,UUID merchantId) {
         log.info("Creating payment: amount={}, currency={}, idempotencyKey={}", 
             request.getAmount(), request.getCurrency(), idempotencyKey);
         
@@ -56,7 +56,7 @@ public class PaymentService {
         
         // 4. Create payment entity
         Payment payment = Payment.builder()
-            .merchantId(UUID.randomUUID()) // TODO: Get from JWT token
+            .merchantId(merchantId) // From JWT token
             .customerId(customer.getId())
             .amount(Money.of(request.getAmount(), request.getCurrency()))
             .status(PaymentStatus.PENDING)

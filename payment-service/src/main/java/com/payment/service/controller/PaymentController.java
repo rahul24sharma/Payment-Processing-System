@@ -61,12 +61,13 @@ public class PaymentController {
                 description = "Idempotency key to prevent duplicate requests",
                 required = true
             )
-            @RequestHeader("Idempotency-Key") String idempotencyKey) {
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestAttribute("merchantId") UUID merchantId) {
         
         log.info("Received payment creation request: amount={}, currency={}, idempotencyKey={}", 
             request.getAmount(), request.getCurrency(), idempotencyKey);
         
-        Payment payment = paymentService.createPayment(request, idempotencyKey);
+        Payment payment = paymentService.createPayment(request, idempotencyKey, merchantId);
         PaymentResponse response = paymentMapper.toResponse(payment);
         
         log.info("Payment created: id={}, status={}", payment.getId(), payment.getStatus());
@@ -114,15 +115,13 @@ public class PaymentController {
     public ResponseEntity<PaymentListResponse> listPayments(
             @Parameter(description = "Filter by payment status")
             @RequestParam(required = false) PaymentStatus status,
-            
+
             @Parameter(description = "Number of results (max 100)")
-            @RequestParam(defaultValue = "20") 
-            @Min(1) @Max(100) int limit) {
-        
+            @RequestParam(defaultValue = "20")
+            @Min(1) @Max(100) int limit,
+            @RequestAttribute("merchantId") UUID merchantId) {
+
         log.info("Listing payments: status={}, limit={}", status, limit);
-        
-        // For MVP, using merchant ID hardcoded (in production, get from JWT)
-        UUID merchantId = UUID.randomUUID(); // TODO: Extract from auth token
         
         List<Payment> payments = paymentService.listPayments(merchantId, status, limit);
         

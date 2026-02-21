@@ -60,7 +60,7 @@ class PaymentControllerTest {
             .createdAt(Instant.now())
             .build();
         
-        when(paymentService.createPayment(any(), anyString())).thenReturn(payment);
+        when(paymentService.createPayment(any(), anyString(), any(UUID.class))).thenReturn(payment);
         when(paymentMapper.toResponse(any())).thenReturn(
             com.payment.service.dto.response.PaymentResponse.builder()
                 .id(payment.getId().toString())
@@ -72,8 +72,10 @@ class PaymentControllerTest {
         );
         
         // When & Then
+        UUID merchantId = UUID.randomUUID();
         mockMvc.perform(post("/api/v1/payments")
                 .header("Idempotency-Key", "test_key_123")
+                .requestAttr("merchantId", merchantId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated())

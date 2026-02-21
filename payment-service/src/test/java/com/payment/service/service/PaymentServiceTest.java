@@ -7,6 +7,7 @@ import com.payment.service.entity.*;
 import com.payment.service.exception.InvalidAmountException;
 import com.payment.service.exception.InvalidStateTransitionException;
 import com.payment.service.exception.PaymentNotFoundException;
+import com.payment.service.client.FraudServiceClient;
 import com.payment.service.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +45,7 @@ class PaymentServiceTest {
     private IdempotencyService idempotencyService;
     
     @Mock
-    private FraudService fraudService;
+    private FraudServiceClient fraudServiceClient;
     
     @Mock
     private MockProcessorService processorService;
@@ -56,7 +57,7 @@ class PaymentServiceTest {
     void setUp() {
         // Default mock behaviors
         when(idempotencyService.findByKey(anyString())).thenReturn(Optional.empty());
-        when(fraudService.assessRisk(any())).thenReturn(BigDecimal.valueOf(15)); // Low risk
+        when(fraudServiceClient.assessRisk(any())).thenReturn(BigDecimal.valueOf(15)); // Low risk
         when(processorService.authorize(any())).thenReturn("proc_mock_123");
     }
     
@@ -89,7 +90,7 @@ class PaymentServiceTest {
             .thenAnswer(invocation -> invocation.getArgument(0));
         
         // When
-        Payment result = paymentService.createPayment(request, "test_idempotency_key");
+        Payment result = paymentService.createPayment(request, "test_idempotency_key", UUID.randomUUID());
         
         // Then
         assertNotNull(result);
@@ -98,7 +99,7 @@ class PaymentServiceTest {
         assertEquals("USD", result.getAmount().getCurrency());
         assertEquals(BigDecimal.valueOf(15), result.getFraudScore());
         
-        verify(fraudService).assessRisk(any());
+        verify(fraudServiceClient).assessRisk(any());
         verify(processorService).authorize(any());
         verify(paymentRepository, atLeast(1)).save(any());
         verify(idempotencyService).store(eq("test_idempotency_key"), any());
@@ -123,19 +124,19 @@ class PaymentServiceTest {
             .build();
         
         when(customerRepository.save(any())).thenReturn(customer);
-        when(fraudService.assessRisk(any())).thenReturn(BigDecimal.valueOf(85)); // High risk!
+        when(fraudServiceClient.assessRisk(any())).thenReturn(BigDecimal.valueOf(85)); // High risk!
         when(paymentRepository.save(any(Payment.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         
         // When
-        Payment result = paymentService.createPayment(request, "test_key");
-        
+        Payment result = paymentService.createPayment(request, "test_key", UUID.randomUUID());
+
         // Then
         assertEquals(PaymentStatus.DECLINED, result.getStatus());
         assertNotNull(result.getFailureReason());
         assertTrue(result.getFailureReason().contains("fraud score"));
         
-        verify(fraudService).assessRisk(any());
+        verify(fraudServiceClient).assessRisk(any());
         verify(processorService, never()).authorize(any()); // Should NOT call processor
     }
     
@@ -162,11 +163,11 @@ class PaymentServiceTest {
             .build();
         
         // When
-        Payment result = paymentService.createPayment(request, idempotencyKey);
+        Payment result = paymentService.createPayment(request, idempotencyKey, UUID.randomUUID());
         
         // Then
         assertEquals(cachedPayment.getId(), result.getId());
-        verify(fraudService, never()).assessRisk(any());
+        verify(fraudServiceClient, never()).assessRisk(any());
         verify(processorService, never()).authorize(any());
         verify(paymentRepository, never()).save(any());
     }
@@ -247,9 +248,9 @@ class PaymentServiceTest {
         
         // When & Then
         assertThrows(InvalidAmountException.class, 
-            () -> paymentService.createPayment(request, "test_key"));
+            () -> paymentService.createPayment(request, "test_key", UUID.randomUUID()));
         
-        verify(fraudService, never()).assessRisk(any());
+        verify(fraudServiceClient, never()).assessRisk(any());
         verify(processorService, never()).authorize(any());
     }
 }
