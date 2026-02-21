@@ -1,7 +1,7 @@
 spring:
   application:
     name: api-gateway
-  
+
   cloud:
     gateway:
       routes:
@@ -12,7 +12,11 @@ spring:
             - Path=/api/v1/payments/**
           filters:
             - StripPrefix=0
-        
+            - name: CircuitBreaker
+              args:
+                name: paymentServiceCB
+                fallbackUri: forward:/fallback/payment
+
         # Fraud Service Routes
         - id: fraud-service
           uri: lb://fraud-service
@@ -20,7 +24,11 @@ spring:
             - Path=/api/v1/fraud/**
           filters:
             - StripPrefix=0
-        
+            - name: CircuitBreaker
+              args:
+                name: fraudServiceCB
+                fallbackUri: forward:/fallback/fraud
+
         # Merchant Service Routes
         - id: merchant-service
           uri: lb://merchant-service
@@ -28,6 +36,42 @@ spring:
             - Path=/api/v1/merchants/**
           filters:
             - StripPrefix=0
+            - name: CircuitBreaker
+              args:
+                name: merchantServiceCB
+                fallbackUri: forward:/fallback/merchant
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      paymentServiceCB:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        registerHealthIndicator: true
+      fraudServiceCB:
+        slidingWindowSize: 10
+        failureRateThreshold: 60       # slightly more tolerant — fraud check is secondary
+        waitDurationInOpenState: 15s
+        permittedNumberOfCallsInHalfOpenState: 3
+        registerHealthIndicator: true
+      merchantServiceCB:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        registerHealthIndicator: true
+
+  timelimiter:
+    instances:
+      paymentServiceCB:
+        timeoutDuration: 3s
+      fraudServiceCB:
+        timeoutDuration: 5s
+      merchantServiceCB:
+        timeoutDuration: 3s
 
 server:
   port: 8080
@@ -36,10 +80,13 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,gateway
+        include: health,info,metrics,prometheus,gateway,circuitbreakers
   endpoint:
     health:
       show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
 
 eureka:
   client:
@@ -55,3 +102,4 @@ logging:
     root: INFO
     org.springframework.cloud.gateway: DEBUG
     org.springframework.web: INFO
+    "[io.github.resilience4j]": DEBUG

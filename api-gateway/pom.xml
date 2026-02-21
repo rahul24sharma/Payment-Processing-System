@@ -37,6 +37,18 @@
   </dependencyManagement>
 
   <dependencies>
+    <!-- Spring Cloud Gateway -->
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-gateway</artifactId>
+    </dependency>
+
+    <!-- Circuit Breaker (Resilience4j reactive) -->
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
+    </dependency>
+
     <!-- Gateway + Actuator -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

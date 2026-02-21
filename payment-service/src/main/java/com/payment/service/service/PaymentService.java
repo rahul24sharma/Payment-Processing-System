@@ -1,5 +1,6 @@
 package com.payment.service.service;
 
+import com.payment.service.client.FraudServiceClient;
 import com.payment.service.dto.request.CapturePaymentRequest;
 import com.payment.service.dto.request.CreatePaymentRequest;
 import com.payment.service.dto.request.RefundRequest;
@@ -29,7 +30,8 @@ public class PaymentService {
     private final CustomerRepository customerRepository;
     private final PaymentEventRepository paymentEventRepository;
     private final IdempotencyService idempotencyService;
-    private final FraudService fraudService;
+    private final FraudServiceClient fraudServiceClient; 
+    // private final FraudService fraudService;
     private final MockProcessorService processorService;
     
     /**
@@ -68,7 +70,7 @@ public class PaymentService {
         recordEvent(payment, "PAYMENT_CREATED", null, PaymentStatus.PENDING.name());
         
         // 6. Assess fraud risk (call Fraud Service)
-        BigDecimal fraudScore = fraudService.assessRisk(payment);
+        BigDecimal fraudScore = fraudServiceClient.assessRisk(payment);
         payment.setFraudScore(fraudScore);
         
         // 7. Check fraud threshold
