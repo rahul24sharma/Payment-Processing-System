@@ -54,7 +54,6 @@ public class PaymentService {
         
         // 4. Create payment entity
         Payment payment = Payment.builder()
-            .id(UUID.randomUUID())
             .merchantId(UUID.randomUUID()) // TODO: Get from JWT token
             .customerId(customer.getId())
             .amount(Money.of(request.getAmount(), request.getCurrency()))
@@ -62,7 +61,6 @@ public class PaymentService {
             .idempotencyKey(idempotencyKey)
             .metadata(request.getMetadata() != null ? request.getMetadata() : new HashMap<>())
             .createdAt(Instant.now())
-            .version(1)
             .build();
         
         // 5. Save payment (status = PENDING)
@@ -323,21 +321,19 @@ public class PaymentService {
         if (customerRequest == null || customerRequest.getEmail() == null) {
             // Create anonymous customer
             return customerRepository.save(Customer.builder()
-                .id(UUID.randomUUID())
                 .email("anonymous-" + UUID.randomUUID() + "@payment.com")
                 .createdAt(Instant.now())
                 .build());
         }
-        
+
         // Check if customer exists
         Optional<Customer> existing = customerRepository.findByEmail(customerRequest.getEmail());
         if (existing.isPresent()) {
             return existing.get();
         }
-        
+
         // Create new customer
         return customerRepository.save(Customer.builder()
-            .id(UUID.randomUUID())
             .email(customerRequest.getEmail())
             .name(customerRequest.getName())
             .phone(customerRequest.getPhone())

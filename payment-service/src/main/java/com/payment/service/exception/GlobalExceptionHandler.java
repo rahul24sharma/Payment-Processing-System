@@ -10,6 +10,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -119,6 +121,25 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
     
+    /**
+     * Handles 404s for unknown routes
+     */
+    @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+    public ResponseEntity<ErrorResponse> handleNotFoundException(Exception ex) {
+        log.warn("No handler found: {}", ex.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+            .error(ErrorResponse.ErrorDetail.builder()
+                .type("not_found")
+                .code("endpoint_not_found")
+                .message("The requested endpoint does not exist.")
+                .timestamp(Instant.now())
+                .build())
+            .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
     /**
      * Handles all other unexpected exceptions
      */

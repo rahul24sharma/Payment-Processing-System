@@ -6,7 +6,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -48,7 +50,8 @@ public class Payment {
     private Money amount;
     
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "payment_status")
     private PaymentStatus status;
     
     @Column(name = "payment_method_id")
@@ -75,7 +78,7 @@ public class Payment {
     
     @Version
     @Column(name = "version", nullable = false)
-    private Integer version = 1;
+    private Integer version;
     
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -1,6 +1,9 @@
 spring:
   application:
     name: payment-service
+
+  jackson:
+    property-naming-strategy: SNAKE_CASE
   
   # Database Configuration - Payment Database
   datasource:
