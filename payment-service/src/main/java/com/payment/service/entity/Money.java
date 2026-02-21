@@ -32,7 +32,7 @@ public class Money {
     
     public static Money of(long amountInCents, String currency) {
         BigDecimal amount = BigDecimal.valueOf(amountInCents)
-            .divide(BigDecimal.valueOf(100));
+            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
         return new Money(amount, currency);
     }
     
