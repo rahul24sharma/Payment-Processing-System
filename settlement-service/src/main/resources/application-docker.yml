@@ -19,3 +19,21 @@ eureka:
   instance:
     prefer-ip-address: false
     hostname: settlement-service
+
+settlement:
+  bank-transfer:
+    provider: ${BANK_TRANSFER_PROVIDER:mock}
+    mock:
+      failure-rate-percent: ${BANK_TRANSFER_MOCK_FAILURE_RATE_PERCENT:2}
+    stripe:
+      base-url: ${STRIPE_API_BASE_URL:https://api.stripe.com}
+      transfer-path: ${STRIPE_CONNECT_TRANSFER_PATH:/v1/transfers}
+      secret-key: ${STRIPE_SECRET_KEY:}
+      destination-account-default: ${STRIPE_CONNECT_DESTINATION_ACCOUNT_DEFAULT:}
+    http:
+      base-url: ${BANK_TRANSFER_API_BASE_URL:}
+      transfer-path: ${BANK_TRANSFER_API_TRANSFER_PATH:/v1/transfers}
+      api-key: ${BANK_TRANSFER_API_KEY:}
+      auth-header: ${BANK_TRANSFER_AUTH_HEADER:Authorization}
+      auth-prefix: ${BANK_TRANSFER_AUTH_PREFIX:Bearer }
+      timeout-ms: ${BANK_TRANSFER_TIMEOUT_MS:5000}

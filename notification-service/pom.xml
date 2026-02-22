@@ -84,6 +84,12 @@
     <version>3.26.0</version>
 </dependency>
 
+<dependency>
+        <groupId>io.hypersistence</groupId>
+        <artifactId>hypersistence-utils-hibernate-60</artifactId>
+        <version>3.5.0</version>
+    </dependency>
+
 
 		<dependency>
         <groupId>io.github.resilience4j</groupId>

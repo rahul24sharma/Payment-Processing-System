@@ -39,6 +39,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
 
 EXPOSE 8085
 
-ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC"
+ENV JAVA_OPTS="-Xms128m -Xmx256m -XX:+UseG1GC -XX:+UseContainerSupport"
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
