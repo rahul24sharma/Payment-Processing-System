@@ -33,7 +33,7 @@ public class PaymentService {
     private final FraudServiceClient fraudServiceClient; 
     // private final FraudService fraudService;
     private final MockProcessorService processorService;
-    
+    private final EventPublisher eventPublisher;
     /**
      * Creates a new payment with idempotency guarantee
      */
@@ -111,11 +111,16 @@ public class PaymentService {
             
             throw e;
         }
+        if (payment.getStatus() == PaymentStatus.AUTHORIZED) {
+            eventPublisher.publishPaymentEvent("PAYMENT_AUTHORIZED", payment, "PENDING");
+        }
+
         
         // 9. Auto-capture if requested
         if (Boolean.TRUE.equals(request.getCapture())) {
             payment = capturePayment(payment.getId(), null);
         }
+
         
         // 10. Store in idempotency cache
         idempotencyService.store(idempotencyKey, payment);
@@ -156,18 +161,20 @@ public class PaymentService {
         // 4. Capture with processor
         try {
             processorService.capture(payment.getProcessorPaymentId(), captureAmount);
-            
+
             PaymentStatus previousStatus = payment.getStatus();
             payment.capture();
             payment = paymentRepository.save(payment);
-            
-            recordEvent(payment, "PAYMENT_CAPTURED", previousStatus.name(), 
+
+            recordEvent(payment, "PAYMENT_CAPTURED", previousStatus.name(),
                 PaymentStatus.CAPTURED.name());
-            
+
+            eventPublisher.publishPaymentEvent("PAYMENT_CAPTURED", payment, previousStatus.name());
+
             log.info("Payment captured successfully: paymentId={}", paymentId);
-            
+
             return payment;
-            
+
         } catch (ProcessorException e) {
             log.error("Payment capture failed: paymentId={}", paymentId, e);
             throw e;

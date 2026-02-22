@@ -9,6 +9,7 @@ BEGIN
     SELECT 1 FROM pg_type WHERE typname = 'merchant_status'
   ) THEN
     CREATE TYPE merchant_status AS ENUM (
+      'PENDING_REVIEW',
       'ACTIVE',
       'INACTIVE',
       'SUSPENDED'
