@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import WebhooksPage from './pages/WebhooksPage'
+import ApiKeysPage from './pages/ApiKeysPage'
 
 // Pages
 import LoginPage from './pages/LoginPage'
@@ -49,6 +51,12 @@ function AppContent() {
               </Link>
               <Link to="/payments" style={{ color: 'white', textDecoration: 'none' }}>
                 All Payments
+              </Link>
+              <Link to="/webhooks" style={{ color: 'white', textDecoration: 'none' }}>
+                Webhooks
+              </Link>
+              <Link to="/api-keys" style={{ color: 'white', textDecoration: 'none' }}>
+                API Keys
               </Link>
             </div>
             
@@ -115,6 +123,22 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <PaymentDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/webhooks"
+            element={
+              <ProtectedRoute>
+                <WebhooksPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/api-keys"
+            element={
+              <ProtectedRoute>
+                <ApiKeysPage />
               </ProtectedRoute>
             }
           />

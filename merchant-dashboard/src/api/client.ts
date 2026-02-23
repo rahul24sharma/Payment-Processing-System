@@ -14,8 +14,12 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('api_token')
+    const merchantId = localStorage.getItem('merchant_id')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    if (merchantId) {
+      config.headers['X-Merchant-Id'] = merchantId
     }
     return config
   },

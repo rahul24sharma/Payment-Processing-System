@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,7 +31,9 @@ public class WebhookController {
     @PostMapping("/endpoints")
     public ResponseEntity<WebhookEndpoint> createEndpoint(
             @RequestBody Map<String, Object> request,
-            @RequestAttribute("merchantId") UUID merchantId) {
+            @RequestAttribute(value = "merchantId", required = false) UUID merchantIdAttr,
+            @RequestHeader(value = "X-Merchant-Id", required = false) String merchantIdHeader) {
+        UUID merchantId = resolveMerchantId(merchantIdAttr, merchantIdHeader);
         
         String url = (String) request.get("url");
         @SuppressWarnings("unchecked")
@@ -45,7 +48,9 @@ public class WebhookController {
     @Operation(summary = "List webhook endpoints")
     @GetMapping("/endpoints")
     public ResponseEntity<List<WebhookEndpoint>> listEndpoints(
-            @RequestAttribute("merchantId") UUID merchantId) {
+            @RequestAttribute(value = "merchantId", required = false) UUID merchantIdAttr,
+            @RequestHeader(value = "X-Merchant-Id", required = false) String merchantIdHeader) {
+        UUID merchantId = resolveMerchantId(merchantIdAttr, merchantIdHeader);
         
         List<WebhookEndpoint> endpoints = endpointService.getEndpoints(merchantId);
         return ResponseEntity.ok(endpoints);
@@ -61,7 +66,9 @@ public class WebhookController {
     @Operation(summary = "List webhook delivery logs")
     @GetMapping("/logs")
     public ResponseEntity<List<Webhook>> getWebhookLogs(
-            @RequestAttribute("merchantId") UUID merchantId) {
+            @RequestAttribute(value = "merchantId", required = false) UUID merchantIdAttr,
+            @RequestHeader(value = "X-Merchant-Id", required = false) String merchantIdHeader) {
+        UUID merchantId = resolveMerchantId(merchantIdAttr, merchantIdHeader);
         
         List<Webhook> webhooks = webhookRepository
             .findByMerchantIdOrderByCreatedAtDesc(merchantId);
@@ -72,5 +79,19 @@ public class WebhookController {
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Notification Service is UP");
+    }
+
+    private UUID resolveMerchantId(UUID merchantIdAttr, String merchantIdHeader) {
+        if (merchantIdAttr != null) {
+            return merchantIdAttr;
+        }
+        if (merchantIdHeader != null && !merchantIdHeader.isBlank()) {
+            try {
+                return UUID.fromString(merchantIdHeader);
+            } catch (IllegalArgumentException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid X-Merchant-Id header");
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing merchantId (request attribute or X-Merchant-Id header)");
     }
 }

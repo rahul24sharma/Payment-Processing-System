@@ -40,4 +40,14 @@ public class FallbackController {
                         "message", "Merchant service is currently unavailable. Please try again later."
                 ));
     }
+
+    @RequestMapping("/notification")
+    public ResponseEntity<Map<String, String>> notificationFallback() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of(
+                        "status", "error",
+                        "service", "notification-service",
+                        "message", "Notification service is currently unavailable. Please try again later."
+                ));
+    }
 }

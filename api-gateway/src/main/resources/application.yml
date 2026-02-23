@@ -69,6 +69,30 @@ spring:
                 name: merchantServiceCB
                 fallbackUri: forward:/fallback/merchant
 
+        # API Key Routes (merchant-service)
+        - id: api-keys-service
+          uri: lb://merchant-service
+          predicates:
+            - Path=/api/v1/api-keys/**
+          filters:
+            - StripPrefix=0
+            - name: CircuitBreaker
+              args:
+                name: merchantServiceCB
+                fallbackUri: forward:/fallback/merchant
+
+        # Notification Service Routes (webhooks)
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/webhooks/**
+          filters:
+            - StripPrefix=0
+            - name: CircuitBreaker
+              args:
+                name: notificationServiceCB
+                fallbackUri: forward:/fallback/notification
+
 # Resilience4j Circuit Breaker Configuration
 resilience4j:
   circuitbreaker:
@@ -91,6 +115,12 @@ resilience4j:
         waitDurationInOpenState: 10s
         permittedNumberOfCallsInHalfOpenState: 3
         registerHealthIndicator: true
+      notificationServiceCB:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        registerHealthIndicator: true
 
   timelimiter:
     instances:
@@ -100,6 +130,8 @@ resilience4j:
         timeoutDuration: 5s
       merchantServiceCB:
         timeoutDuration: 3s
+      notificationServiceCB:
+        timeoutDuration: 5s
 
 server:
   port: 8080
