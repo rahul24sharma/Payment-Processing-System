@@ -2,8 +2,18 @@ spring:
   application:
     name: api-gateway
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
   cloud:
     gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 5000
+            response-timeout: 60s
       globalcors:
         cors-configurations:
           '[/**]':
@@ -23,11 +33,17 @@ spring:
       routes:
         # Payment Service Routes
         - id: payment-service
-          uri: lb://payment-service
+          uri: ${PAYMENT_SERVICE_URI:http://localhost:8081}
           predicates:
             - Path=/api/v1/payments/**
           filters:
             - StripPrefix=0
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@merchantOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
             - name: CircuitBreaker
               args:
                 name: paymentServiceCB
@@ -40,6 +56,12 @@ spring:
             - Path=/api/v1/fraud/**
           filters:
             - StripPrefix=0
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@merchantOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
             - name: CircuitBreaker
               args:
                 name: fraudServiceCB
@@ -52,6 +74,12 @@ spring:
             - Path=/api/v1/merchants/**
           filters:
             - StripPrefix=0
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@merchantOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 15
+                redis-rate-limiter.burstCapacity: 30
+                redis-rate-limiter.requestedTokens: 1
             - name: CircuitBreaker
               args:
                 name: merchantServiceCB
@@ -64,6 +92,12 @@ spring:
             - Path=/api/v1/auth/**
           filters:
             - StripPrefix=0
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@merchantOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
             - name: CircuitBreaker
               args:
                 name: merchantServiceCB
@@ -76,6 +110,30 @@ spring:
             - Path=/api/v1/api-keys/**
           filters:
             - StripPrefix=0
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@merchantOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+            - name: CircuitBreaker
+              args:
+                name: merchantServiceCB
+                fallbackUri: forward:/fallback/merchant
+
+        # Tickets Routes (merchant-service)
+        - id: tickets-service
+          uri: lb://merchant-service
+          predicates:
+            - Path=/api/v1/tickets/**
+          filters:
+            - StripPrefix=0
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@merchantOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 15
+                redis-rate-limiter.burstCapacity: 30
+                redis-rate-limiter.requestedTokens: 1
             - name: CircuitBreaker
               args:
                 name: merchantServiceCB
@@ -88,6 +146,12 @@ spring:
             - Path=/api/v1/webhooks/**
           filters:
             - StripPrefix=0
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@merchantOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
             - name: CircuitBreaker
               args:
                 name: notificationServiceCB
@@ -125,7 +189,7 @@ resilience4j:
   timelimiter:
     instances:
       paymentServiceCB:
-        timeoutDuration: 3s
+        timeoutDuration: 45s
       fraudServiceCB:
         timeoutDuration: 5s
       merchantServiceCB:

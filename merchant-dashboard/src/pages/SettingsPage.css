@@ -1,0 +1,115 @@
+.settings-page {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-page__hero {
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background:
+    radial-gradient(circle at 8% 16%, rgba(22, 93, 255, 0.1), transparent 42%),
+    radial-gradient(circle at 92% 14%, rgba(14, 165, 164, 0.1), transparent 45%),
+    #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.03);
+  padding: 20px 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(240px, 0.7fr);
+  gap: 14px;
+}
+
+.settings-page__eyebrow {
+  margin: 0 0 6px;
+  color: #64748b;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.settings-page__hero h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: clamp(1.35rem, 2vw, 1.85rem);
+}
+
+.settings-page__subtitle {
+  margin: 10px 0 0;
+  color: #475569;
+  max-width: 72ch;
+  line-height: 1.45;
+}
+
+.settings-page__hero-card {
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  padding: 14px;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.settings-page__hero-card-label {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.settings-page__hero-card-value {
+  color: #0f172a;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.settings-page__hero-card-note {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.settings-page__tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.03);
+}
+
+.settings-page__tab {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #64748b;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-page__tab:hover {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.settings-page__tab--active {
+  background: linear-gradient(135deg, #165dff, #0ea5a4);
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(22, 93, 255, 0.16);
+}
+
+.settings-page__content {
+  display: grid;
+  gap: 14px;
+}
+
+@media (max-width: 920px) {
+  .settings-page__hero {
+    grid-template-columns: 1fr;
+  }
+}

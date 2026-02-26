@@ -1,7 +1,9 @@
 package com.payment.settlement.service;
 
 import com.payment.settlement.client.PaymentServiceClient;
+import com.payment.settlement.dto.ReserveReportResponse;
 import com.payment.settlement.dto.PaymentDTO;
+import com.payment.settlement.dto.SettlementReportResponse;
 import com.payment.settlement.entity.*;
 import com.payment.settlement.repository.PayoutRepository;
 import com.payment.settlement.repository.SettlementBatchRepository;
@@ -244,5 +246,96 @@ public class SettlementService {
     @Transactional(readOnly = true)
     public List<Payout> getMerchantPayouts(UUID merchantId) {
         return payoutRepository.findByMerchantIdOrderBySettlementDateDesc(merchantId);
+    }
+
+    /**
+     * Settlement report for a date range.
+     */
+    @Transactional(readOnly = true)
+    public SettlementReportResponse getSettlementReport(LocalDate startDate, LocalDate endDate) {
+        List<Payout> payouts = payoutRepository.findBySettlementDateBetween(startDate, endDate);
+        List<SettlementBatch> batches = settlementBatchRepository.findAll().stream()
+            .filter(b -> !b.getSettlementDate().isBefore(startDate) && !b.getSettlementDate().isAfter(endDate))
+            .toList();
+
+        BigDecimal totalGrossAmount = sumPayoutField(payouts, Payout::getTotalAmount);
+        BigDecimal totalFeeAmount = sumPayoutField(payouts, Payout::getFeeAmount);
+        BigDecimal totalNetAmount = sumPayoutField(payouts, Payout::getNetAmount);
+        BigDecimal totalReserveAmount = sumPayoutField(payouts, Payout::getReserveAmount);
+        BigDecimal totalPayoutAmount = sumPayoutField(payouts, Payout::getPayoutAmount);
+
+        int totalPaymentCount = payouts.stream()
+            .map(Payout::getPaymentCount)
+            .filter(Objects::nonNull)
+            .mapToInt(Integer::intValue)
+            .sum();
+
+        Map<String, Long> payoutStatusCounts = payouts.stream()
+            .collect(Collectors.groupingBy(
+                p -> p.getStatus().name(),
+                TreeMap::new,
+                Collectors.counting()
+            ));
+
+        Map<String, Long> batchStatusCounts = batches.stream()
+            .collect(Collectors.groupingBy(
+                b -> b.getStatus().name(),
+                TreeMap::new,
+                Collectors.counting()
+            ));
+
+        return SettlementReportResponse.builder()
+            .startDate(startDate)
+            .endDate(endDate)
+            .batchCount(batches.size())
+            .payoutCount(payouts.size())
+            .totalPaymentCount(totalPaymentCount)
+            .totalGrossAmount(totalGrossAmount)
+            .totalFeeAmount(totalFeeAmount)
+            .totalNetAmount(totalNetAmount)
+            .totalReserveAmount(totalReserveAmount)
+            .totalPayoutAmount(totalPayoutAmount)
+            .payoutStatusCounts(payoutStatusCounts)
+            .batchStatusCounts(batchStatusCounts)
+            .build();
+    }
+
+    /**
+     * Reserve report (optionally per merchant) for a date range.
+     */
+    @Transactional(readOnly = true)
+    public ReserveReportResponse getReserveReport(LocalDate startDate, LocalDate endDate, UUID merchantId) {
+        List<Payout> payouts = merchantId == null
+            ? payoutRepository.findBySettlementDateBetween(startDate, endDate)
+            : payoutRepository.findByMerchantIdAndSettlementDateBetweenOrderBySettlementDateDesc(merchantId, startDate, endDate);
+
+        BigDecimal totalReserveHeld = sumPayoutField(payouts, Payout::getReserveAmount);
+        BigDecimal totalPayoutAmount = sumPayoutField(payouts, Payout::getPayoutAmount);
+        BigDecimal totalNetAmount = sumPayoutField(payouts, Payout::getNetAmount);
+
+        BigDecimal reserveRatePercentOfNet = BigDecimal.ZERO;
+        if (totalNetAmount.compareTo(BigDecimal.ZERO) > 0) {
+            reserveRatePercentOfNet = totalReserveHeld
+                .multiply(BigDecimal.valueOf(100))
+                .divide(totalNetAmount, 4, RoundingMode.HALF_UP);
+        }
+
+        return ReserveReportResponse.builder()
+            .startDate(startDate)
+            .endDate(endDate)
+            .merchantId(merchantId)
+            .payoutCount(payouts.size())
+            .totalReserveHeld(totalReserveHeld)
+            .totalPayoutAmount(totalPayoutAmount)
+            .totalNetAmount(totalNetAmount)
+            .reserveRatePercentOfNet(reserveRatePercentOfNet)
+            .build();
+    }
+
+    private BigDecimal sumPayoutField(List<Payout> payouts, java.util.function.Function<Payout, BigDecimal> getter) {
+        return payouts.stream()
+            .map(getter)
+            .filter(Objects::nonNull)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

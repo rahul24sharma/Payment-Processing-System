@@ -1,21 +1,28 @@
 package com.payment.service.mapper;
 
 import com.payment.service.dto.request.CreatePaymentRequest;
-import com.payment.service.dto.request.CustomerRequest;
 import com.payment.service.dto.response.*;
 import com.payment.service.entity.*;
+import com.payment.service.repository.CustomerRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class PaymentMapper {
+    private final CustomerRepository customerRepository;
     
     /**
      * Convert Payment entity to PaymentResponse DTO
      */
     public PaymentResponse toResponse(Payment payment) {
+        return toResponse(payment, null);
+    }
+
+    public PaymentResponse toResponse(Payment payment, PaymentNextActionResponse nextAction) {
         if (payment == null) {
             return null;
         }
@@ -29,7 +36,7 @@ public class PaymentMapper {
             .captured(payment.getStatus() == PaymentStatus.CAPTURED || 
                      payment.getStatus() == PaymentStatus.REFUNDED ||
                      payment.getStatus() == PaymentStatus.PARTIALLY_REFUNDED)
-            .paymentMethod(toPaymentMethodResponse(payment.getPaymentMethodId()))
+            .paymentMethod(toPaymentMethodResponse(payment))
             .customer(toCustomerResponse(payment.getCustomerId()))
             .fraudDetails(toFraudDetailsResponse(payment))
             .refunds(toRefundResponseList(payment.getRefunds()))
@@ -39,6 +46,7 @@ public class PaymentMapper {
             .createdAt(payment.getCreatedAt() != null ? payment.getCreatedAt().toString() : null)
             .authorizedAt(payment.getAuthorizedAt() != null ? payment.getAuthorizedAt().toString() : null)
             .capturedAt(payment.getCapturedAt() != null ? payment.getCapturedAt().toString() : null)
+            .nextAction(nextAction)
             .build();
     }
     
@@ -99,23 +107,26 @@ public class PaymentMapper {
     /**
      * Create payment method response (simplified for MVP)
      */
-    private PaymentMethodResponse toPaymentMethodResponse(java.util.UUID paymentMethodId) {
-        if (paymentMethodId == null) {
+    private PaymentMethodResponse toPaymentMethodResponse(Payment payment) {
+        if (payment == null) {
             return null;
         }
-        
-        // For MVP, we'll return minimal info
-        // In full version, we'd fetch from PaymentMethodRepository
+
+        String stripePaymentMethodId = null;
+        if (payment.getMetadata() != null) {
+            Object metadataValue = payment.getMetadata().get("stripe_payment_method_id");
+            if (metadataValue instanceof String value && !value.isBlank()) {
+                stripePaymentMethodId = value;
+            }
+        }
+
+        if (stripePaymentMethodId == null && payment.getPaymentMethodId() == null) {
+            return null;
+        }
+
         return PaymentMethodResponse.builder()
-            .id(paymentMethodId.toString())
-            .type("card")
-            .card(PaymentMethodResponse.CardDetails.builder()
-                .brand("visa")
-                .last4("4242")
-                .expMonth(12)
-                .expYear(2027)
-                .expired(false)
-                .build())
+            .id(stripePaymentMethodId != null ? stripePaymentMethodId : payment.getPaymentMethodId().toString())
+            .type(payment.getProcessor() != null && payment.getProcessor().equalsIgnoreCase("stripe") ? "card" : "unknown")
             .build();
     }
     
@@ -126,12 +137,17 @@ public class PaymentMapper {
         if (customerId == null) {
             return null;
         }
-        
-        // For MVP, we'll return minimal info
-        // In full version, we'd fetch from CustomerRepository
-        return CustomerResponse.builder()
-            .id(customerId.toString())
-            .build();
+
+        return customerRepository.findById(customerId)
+            .map(customer -> CustomerResponse.builder()
+                .id(customer.getId().toString())
+                .email(customer.getEmail())
+                .name(customer.getName())
+                .phone(customer.getPhone())
+                .build())
+            .orElse(CustomerResponse.builder()
+                .id(customerId.toString())
+                .build());
     }
     
     /**

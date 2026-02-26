@@ -44,6 +44,18 @@ public class WebhookController {
         
         return ResponseEntity.status(HttpStatus.CREATED).body(endpoint);
     }
+
+    /**
+     * Alias endpoint to match planned API shape: POST /api/v1/webhooks
+     */
+    @Operation(summary = "Create webhook endpoint (alias)")
+    @PostMapping
+    public ResponseEntity<WebhookEndpoint> createWebhook(
+            @RequestBody Map<String, Object> request,
+            @RequestAttribute(value = "merchantId", required = false) UUID merchantIdAttr,
+            @RequestHeader(value = "X-Merchant-Id", required = false) String merchantIdHeader) {
+        return createEndpoint(request, merchantIdAttr, merchantIdHeader);
+    }
     
     @Operation(summary = "List webhook endpoints")
     @GetMapping("/endpoints")
@@ -73,6 +85,16 @@ public class WebhookController {
         List<Webhook> webhooks = webhookRepository
             .findByMerchantIdOrderByCreatedAtDesc(merchantId);
         
+        return ResponseEntity.ok(webhooks);
+    }
+
+    /**
+     * Alias endpoint to match planned API shape: GET /api/v1/webhooks/{id}/logs
+     */
+    @Operation(summary = "List webhook delivery logs by endpoint id")
+    @GetMapping("/{id}/logs")
+    public ResponseEntity<List<Webhook>> getWebhookLogsByEndpoint(@PathVariable UUID id) {
+        List<Webhook> webhooks = webhookRepository.findByEndpointIdOrderByCreatedAtDesc(id);
         return ResponseEntity.ok(webhooks);
     }
     

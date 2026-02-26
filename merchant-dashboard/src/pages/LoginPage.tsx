@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import './AuthPages.css'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -27,96 +28,81 @@ export default function LoginPage() {
   }
   
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      background: '#f5f5f5',
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '40px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        width: '100%',
-        maxWidth: '400px',
-      }}>
-        <h2 style={{ marginBottom: '30px', textAlign: 'center' }}>Login</h2>
-        
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-              }}
-            />
-          </div>
-          
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-              }}
-            />
-          </div>
-          
-          {error && (
-            <div style={{
-              padding: '10px',
-              background: '#ffebee',
-              color: '#f44336',
-              borderRadius: '4px',
-              marginBottom: '20px',
-            }}>
-              {error}
+    <div className="auth-page">
+      <div className="auth-page__shell">
+        <aside className="auth-page__aside">
+          <div>
+            <div className="auth-page__brand">
+              <span className="auth-page__brand-mark">PS</span>
+              <span>Payment System</span>
             </div>
-          )}
-          
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '12px',
-              background: loading ? '#ccc' : '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: '16px',
-              fontWeight: 'bold',
-            }}
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-        
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <a href="/register" style={{ color: '#007bff' }}>
-            Don't have an account? Register
-          </a>
-        </div>
+            <div className="auth-page__aside-copy">
+              <h1>Merchant operations in one place</h1>
+              <p>
+                Track payments, manage refunds, monitor webhooks, and operate your payment stack from a single control
+                surface.
+              </p>
+            </div>
+          </div>
+
+          <div className="auth-page__feature-list">
+            <div className="auth-page__feature">
+              <strong>Real-time statuses</strong>
+              Payment and refund lifecycle tracking with operational actions.
+            </div>
+            <div className="auth-page__feature">
+              <strong>Developer tools</strong>
+              Webhooks, API keys, and analytics built into the merchant dashboard.
+            </div>
+          </div>
+        </aside>
+
+        <main className="auth-page__main">
+          <div className="auth-card">
+            <div className="auth-card__header">
+              <h2>Welcome back</h2>
+              <p>Log in to manage your merchant account and payment operations.</p>
+            </div>
+
+            {error && <div className="auth-card__error">{error}</div>}
+
+            <form onSubmit={handleSubmit} className="auth-form">
+              <div className="auth-form__grid">
+                <div className="auth-form__field">
+                  <label htmlFor="login-email">Email</label>
+                  <input
+                    id="login-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div className="auth-form__field">
+                  <label htmlFor="login-password">Password</label>
+                  <input
+                    id="login-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                  />
+                </div>
+              </div>
+
+              <button type="submit" disabled={loading} className="auth-form__submit">
+                {loading ? 'Logging in...' : 'Login'}
+              </button>
+            </form>
+
+            <div className="auth-card__footer">
+              Don't have an account? <Link to="/register">Register</Link>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   )

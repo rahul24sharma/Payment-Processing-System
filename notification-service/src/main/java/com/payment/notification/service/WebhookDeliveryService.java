@@ -27,6 +27,7 @@ public class WebhookDeliveryService {
     
     private final WebhookRepository webhookRepository;
     private final RestTemplate restTemplate;
+    private final NotificationDlqPublisher notificationDlqPublisher;
     
     private static final int MAX_RETRIES = 5;
     private static final int[] RETRY_DELAYS = {60, 300, 900, 3600, 7200}; // seconds: 1min, 5min, 15min, 1hr, 2hr
@@ -131,6 +132,9 @@ public class WebhookDeliveryService {
             
             log.error("Webhook delivery failed permanently: id={}, attempts={}", 
                 webhook.getId(), webhook.getAttempts());
+
+            // Publish terminal failures to a dead-letter topic for ops investigation/replay tooling.
+            notificationDlqPublisher.publishWebhookFailure(webhook, error);
         } else {
             // Schedule next retry
             int delaySeconds = RETRY_DELAYS[webhook.getAttempts() - 1];

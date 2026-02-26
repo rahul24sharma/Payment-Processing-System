@@ -10,6 +10,7 @@ import com.payment.service.entity.Payment;
 import com.payment.service.entity.PaymentStatus;
 import com.payment.service.entity.Refund;
 import com.payment.service.mapper.PaymentMapper;
+import com.payment.service.service.PaymentOperationResult;
 import com.payment.service.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -67,8 +68,9 @@ public class PaymentController {
         log.info("Received payment creation request: amount={}, currency={}, idempotencyKey={}", 
             request.getAmount(), request.getCurrency(), idempotencyKey);
         
-        Payment payment = paymentService.createPayment(request, idempotencyKey, merchantId);
-        PaymentResponse response = paymentMapper.toResponse(payment);
+        PaymentOperationResult result = paymentService.createPayment(request, idempotencyKey, merchantId);
+        Payment payment = result.getPayment();
+        PaymentResponse response = paymentMapper.toResponse(payment, result.getNextAction());
         
         log.info("Payment created: id={}, status={}", payment.getId(), payment.getStatus());
         
@@ -100,6 +102,42 @@ public class PaymentController {
         
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Authorize a pending payment
+     */
+    @Operation(
+        summary = "Authorize a payment",
+        description = "Authorizes a previously created pending payment without capturing it."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Payment authorized successfully"),
+        @ApiResponse(responseCode = "404", description = "Payment not found"),
+        @ApiResponse(responseCode = "409", description = "Payment cannot be authorized in current state")
+    })
+    @PostMapping("/{id}/authorize")
+    public ResponseEntity<PaymentResponse> authorizePayment(
+            @Parameter(description = "Payment ID", required = true)
+            @PathVariable String id) {
+
+        log.info("Authorizing payment: id={}", id);
+
+        PaymentOperationResult result = paymentService.authorizePayment(UUID.fromString(id));
+        PaymentResponse response = paymentMapper.toResponse(result.getPayment(), result.getNextAction());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/complete-authentication")
+    public ResponseEntity<PaymentResponse> completeAuthentication(
+            @Parameter(description = "Payment ID", required = true)
+            @PathVariable String id) {
+
+        log.info("Completing payment authentication: id={}", id);
+        PaymentOperationResult result = paymentService.completeAuthentication(UUID.fromString(id));
+        PaymentResponse response = paymentMapper.toResponse(result.getPayment(), result.getNextAction());
+        return ResponseEntity.ok(response);
+    }
     
     /**
      * List payments
@@ -126,7 +164,7 @@ public class PaymentController {
         List<Payment> payments = paymentService.listPayments(merchantId, status, limit);
         
         List<PaymentResponse> paymentResponses = payments.stream()
-            .map(paymentMapper::toMinimalResponse)
+            .map(paymentMapper::toResponse)
             .collect(Collectors.toList());
         
         PaymentListResponse response = PaymentListResponse.builder()

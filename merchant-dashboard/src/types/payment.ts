@@ -45,6 +45,15 @@ export enum PaymentStatus {
     createdAt: string
     authorizedAt?: string
     capturedAt?: string
+    nextAction?: PaymentNextAction
+  }
+
+  export interface PaymentNextAction {
+    type: string
+    clientSecret?: string
+    paymentIntentId?: string
+    processor?: string
+    status?: string
   }
   
   export interface Refund {
@@ -66,10 +75,19 @@ export enum PaymentStatus {
     paymentMethod: {
       type: string
       cardToken?: string
+      savedPaymentMethodId?: string
     }
     customer?: {
       email: string
       name?: string
+      address?: {
+        line1?: string
+        line2?: string
+        city?: string
+        state?: string
+        postalCode?: string
+        country?: string
+      }
     }
     capture?: boolean
     metadata?: Record<string, any>

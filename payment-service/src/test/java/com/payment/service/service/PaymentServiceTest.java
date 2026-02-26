@@ -2,6 +2,7 @@ package com.payment.service.service;
 
 import com.payment.service.dto.request.CreatePaymentRequest;
 import com.payment.service.dto.request.CustomerRequest;
+import com.payment.service.dto.request.AddressRequest;
 import com.payment.service.dto.request.PaymentMethodRequest;
 import com.payment.service.entity.*;
 import com.payment.service.exception.InvalidAmountException;
@@ -24,6 +25,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,7 +50,10 @@ class PaymentServiceTest {
     private FraudServiceClient fraudServiceClient;
     
     @Mock
-    private MockProcessorService processorService;
+    private StripePaymentService stripePaymentService;
+
+    @Mock
+    private EventPublisher eventPublisher;
     
     @InjectMocks
     private PaymentService paymentService;
@@ -58,7 +63,7 @@ class PaymentServiceTest {
         // Default mock behaviors
         when(idempotencyService.findByKey(anyString())).thenReturn(Optional.empty());
         when(fraudServiceClient.assessRisk(any())).thenReturn(BigDecimal.valueOf(15)); // Low risk
-        when(processorService.authorize(any())).thenReturn("proc_mock_123");
+        when(stripePaymentService.authorize(any())).thenReturn("pi_mock_123");
     }
     
     @Test
@@ -70,11 +75,18 @@ class PaymentServiceTest {
             .capture(false) // Auth only
             .paymentMethod(PaymentMethodRequest.builder()
                 .type("card")
-                .cardToken("tok_visa_4242")
+                .savedPaymentMethodId("pm_test_123")
                 .build())
             .customer(CustomerRequest.builder()
                 .email("customer@example.com")
                 .name("John Doe")
+                .address(AddressRequest.builder()
+                    .line1("MG Road 1")
+                    .city("Bengaluru")
+                    .state("KA")
+                    .postalCode("560001")
+                    .country("IN")
+                    .build())
                 .build())
             .build();
         
@@ -90,7 +102,9 @@ class PaymentServiceTest {
             .thenAnswer(invocation -> invocation.getArgument(0));
         
         // When
-        Payment result = paymentService.createPayment(request, "test_idempotency_key", UUID.randomUUID());
+        PaymentOperationResult operationResult =
+            paymentService.createPayment(request, "test_idempotency_key", UUID.randomUUID());
+        Payment result = operationResult.getPayment();
         
         // Then
         assertNotNull(result);
@@ -100,7 +114,7 @@ class PaymentServiceTest {
         assertEquals(BigDecimal.valueOf(15), result.getFraudScore());
         
         verify(fraudServiceClient).assessRisk(any());
-        verify(processorService).authorize(any());
+        verify(stripePaymentService).authorize(any());
         verify(paymentRepository, atLeast(1)).save(any());
         verify(idempotencyService).store(eq("test_idempotency_key"), any());
     }
@@ -114,7 +128,18 @@ class PaymentServiceTest {
             .capture(false)
             .paymentMethod(PaymentMethodRequest.builder()
                 .type("card")
-                .cardToken("tok_visa_4242")
+                .savedPaymentMethodId("pm_test_123")
+                .build())
+            .customer(CustomerRequest.builder()
+                .email("risk@example.com")
+                .name("Risky User")
+                .address(AddressRequest.builder()
+                    .line1("Street 1")
+                    .city("Mumbai")
+                    .state("MH")
+                    .postalCode("400001")
+                    .country("IN")
+                    .build())
                 .build())
             .build();
         
@@ -129,7 +154,9 @@ class PaymentServiceTest {
             .thenAnswer(invocation -> invocation.getArgument(0));
         
         // When
-        Payment result = paymentService.createPayment(request, "test_key", UUID.randomUUID());
+        PaymentOperationResult operationResult =
+            paymentService.createPayment(request, "test_key", UUID.randomUUID());
+        Payment result = operationResult.getPayment();
 
         // Then
         assertEquals(PaymentStatus.DECLINED, result.getStatus());
@@ -137,7 +164,7 @@ class PaymentServiceTest {
         assertTrue(result.getFailureReason().contains("fraud score"));
         
         verify(fraudServiceClient).assessRisk(any());
-        verify(processorService, never()).authorize(any()); // Should NOT call processor
+        verify(stripePaymentService, never()).authorize(any()); // Should NOT call processor
     }
     
     @Test
@@ -158,17 +185,19 @@ class PaymentServiceTest {
             .currency("USD")
             .paymentMethod(PaymentMethodRequest.builder()
                 .type("card")
-                .cardToken("tok_visa")
+                .savedPaymentMethodId("pm_test_123")
                 .build())
             .build();
         
         // When
-        Payment result = paymentService.createPayment(request, idempotencyKey, UUID.randomUUID());
+        PaymentOperationResult operationResult =
+            paymentService.createPayment(request, idempotencyKey, UUID.randomUUID());
+        Payment result = operationResult.getPayment();
         
         // Then
         assertEquals(cachedPayment.getId(), result.getId());
         verify(fraudServiceClient, never()).assessRisk(any());
-        verify(processorService, never()).authorize(any());
+        verify(stripePaymentService, never()).authorize(any());
         verify(paymentRepository, never()).save(any());
     }
     
@@ -190,7 +219,7 @@ class PaymentServiceTest {
         when(paymentRepository.save(any(Payment.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         
-        doNothing().when(processorService).capture(anyString(), any());
+        doNothing().when(stripePaymentService).capture(anyString(), any());
         
         // When
         Payment result = paymentService.capturePayment(paymentId, null);
@@ -199,7 +228,7 @@ class PaymentServiceTest {
         assertEquals(PaymentStatus.CAPTURED, result.getStatus());
         assertNotNull(result.getCapturedAt());
         
-        verify(processorService).capture(eq("proc_123"), any());
+        verify(stripePaymentService).capture(eq("proc_123"), any());
         verify(paymentRepository).save(any());
     }
     
@@ -219,7 +248,7 @@ class PaymentServiceTest {
         assertThrows(InvalidStateTransitionException.class, 
             () -> paymentService.capturePayment(paymentId, null));
         
-        verify(processorService, never()).capture(anyString(), any());
+        verify(stripePaymentService, never()).capture(anyString(), any());
     }
     
     @Test
@@ -242,7 +271,7 @@ class PaymentServiceTest {
             .currency("USD")
             .paymentMethod(PaymentMethodRequest.builder()
                 .type("card")
-                .cardToken("tok_visa")
+                .savedPaymentMethodId("pm_test_123")
                 .build())
             .build();
         
@@ -251,6 +280,126 @@ class PaymentServiceTest {
             () -> paymentService.createPayment(request, "test_key", UUID.randomUUID()));
         
         verify(fraudServiceClient, never()).assessRisk(any());
-        verify(processorService, never()).authorize(any());
+        verify(stripePaymentService, never()).authorize(any());
+    }
+
+    @Test
+    void webhookSucceededShouldAuthorizeAndCapturePendingPaymentOnce() {
+        UUID paymentId = UUID.randomUUID();
+        Payment payment = Payment.builder()
+            .id(paymentId)
+            .amount(Money.of(new BigDecimal("100.00"), "USD"))
+            .status(PaymentStatus.PENDING)
+            .processorPaymentId("pi_webhook_123")
+            .metadata(new java.util.HashMap<>())
+            .version(1)
+            .build();
+
+        when(paymentRepository.findByProcessorPaymentId("pi_webhook_123"))
+            .thenReturn(Optional.of(payment));
+        when(paymentRepository.save(any(Payment.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(paymentEventRepository.save(any(PaymentEvent.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        paymentService.handleStripePaymentIntentSucceededWebhook("pi_webhook_123");
+
+        assertEquals(PaymentStatus.CAPTURED, payment.getStatus());
+        verify(paymentRepository, atLeastOnce()).save(any(Payment.class));
+        verify(paymentEventRepository, times(2)).save(any(PaymentEvent.class)); // AUTHORIZED + CAPTURED
+        verify(eventPublisher).publishPaymentEvent(eq("PAYMENT_CAPTURED"), eq(payment), eq("PENDING"));
+    }
+
+    @Test
+    void repeatedWebhookSucceededShouldBeIgnoredForCapturedPayment() {
+        Payment payment = Payment.builder()
+            .id(UUID.randomUUID())
+            .amount(Money.of(new BigDecimal("100.00"), "USD"))
+            .status(PaymentStatus.CAPTURED)
+            .processorPaymentId("pi_dup_123")
+            .version(1)
+            .build();
+
+        when(paymentRepository.findByProcessorPaymentId("pi_dup_123"))
+            .thenReturn(Optional.of(payment));
+
+        paymentService.handleStripePaymentIntentSucceededWebhook("pi_dup_123");
+
+        verify(paymentRepository, never()).save(any(Payment.class));
+        verify(paymentEventRepository, never()).save(any(PaymentEvent.class));
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void failedWebhookAfterCapturedShouldNotDowngradeState() {
+        Payment payment = Payment.builder()
+            .id(UUID.randomUUID())
+            .amount(Money.of(new BigDecimal("100.00"), "USD"))
+            .status(PaymentStatus.CAPTURED)
+            .processorPaymentId("pi_captured_123")
+            .version(1)
+            .build();
+
+        when(paymentRepository.findByProcessorPaymentId("pi_captured_123"))
+            .thenReturn(Optional.of(payment));
+
+        paymentService.handleStripePaymentIntentFailedWebhook("pi_captured_123", "late failure", "late_failure");
+
+        assertEquals(PaymentStatus.CAPTURED, payment.getStatus());
+        verify(paymentRepository, never()).save(any(Payment.class));
+        verify(paymentEventRepository, never()).save(any(PaymentEvent.class));
+    }
+
+    @Test
+    void chargeRefundedWebhookShouldBeIdempotentForAlreadyRefundedPayment() {
+        Payment payment = Payment.builder()
+            .id(UUID.randomUUID())
+            .amount(Money.of(new BigDecimal("100.00"), "USD"))
+            .status(PaymentStatus.CAPTURED)
+            .processorPaymentId("pi_ref_123")
+            .version(1)
+            .build();
+
+        when(paymentRepository.findByProcessorPaymentId("pi_ref_123"))
+            .thenReturn(Optional.of(payment));
+        when(paymentRepository.save(any(Payment.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(paymentEventRepository.save(any(PaymentEvent.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        paymentService.handleStripeChargeRefundedWebhook("pi_ref_123", 10_000L, "USD");
+        paymentService.handleStripeChargeRefundedWebhook("pi_ref_123", 10_000L, "USD");
+
+        assertEquals(PaymentStatus.REFUNDED, payment.getStatus());
+        verify(paymentEventRepository, times(1)).save(any(PaymentEvent.class)); // no duplicate refund event
+    }
+
+    @Test
+    void refundUpdatedSucceededShouldIgnoreOutOfOrderForNonCapturedPaymentThenApplyLater() {
+        Payment payment = Payment.builder()
+            .id(UUID.randomUUID())
+            .amount(Money.of(new BigDecimal("100.00"), "USD"))
+            .status(PaymentStatus.PENDING)
+            .processorPaymentId("pi_refupd_123")
+            .version(1)
+            .build();
+
+        when(paymentRepository.findByProcessorPaymentId("pi_refupd_123"))
+            .thenReturn(Optional.of(payment));
+        when(paymentRepository.save(any(Payment.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(paymentEventRepository.save(any(PaymentEvent.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        paymentService.handleStripeRefundWebhook("pi_refupd_123", "succeeded", 5_000L, "USD");
+        assertEquals(PaymentStatus.PENDING, payment.getStatus());
+        verify(paymentRepository, never()).save(any(Payment.class));
+
+        payment.setStatus(PaymentStatus.CAPTURED);
+        paymentService.handleStripeRefundWebhook("pi_refupd_123", "succeeded", 5_000L, "USD");
+
+        assertEquals(PaymentStatus.PARTIALLY_REFUNDED, payment.getStatus());
+        verify(paymentRepository, times(1)).save(any(Payment.class));
+        verify(paymentEventRepository, times(1)).save(any(PaymentEvent.class));
     }
 }

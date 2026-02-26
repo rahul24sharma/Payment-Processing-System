@@ -7,6 +7,7 @@ import com.payment.service.entity.Money;
 import com.payment.service.entity.Payment;
 import com.payment.service.entity.PaymentStatus;
 import com.payment.service.mapper.PaymentMapper;
+import com.payment.service.service.PaymentOperationResult;
 import com.payment.service.service.PaymentService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,8 +61,9 @@ class PaymentControllerTest {
             .createdAt(Instant.now())
             .build();
         
-        when(paymentService.createPayment(any(), anyString(), any(UUID.class))).thenReturn(payment);
-        when(paymentMapper.toResponse(any())).thenReturn(
+        when(paymentService.createPayment(any(), anyString(), any(UUID.class)))
+            .thenReturn(PaymentOperationResult.of(payment));
+        when(paymentMapper.toResponse(any(Payment.class), any())).thenReturn(
             com.payment.service.dto.response.PaymentResponse.builder()
                 .id(payment.getId().toString())
                 .amount(10000L)
@@ -101,6 +103,7 @@ class PaymentControllerTest {
         // When & Then
         mockMvc.perform(post("/api/v1/payments")
                 .header("Idempotency-Key", "test_key")
+                .requestAttr("merchantId", UUID.randomUUID())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest())

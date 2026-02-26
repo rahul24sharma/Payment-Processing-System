@@ -1,17 +1,25 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, NavLink, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { ToastProvider } from '@/contexts/ToastContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import WebhooksPage from './pages/WebhooksPage'
-import ApiKeysPage from './pages/ApiKeysPage'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import './App.css'
 
-// Pages
-import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
-import DashboardPage from './pages/DashboardPage'
-import PaymentsPage from './pages/PaymentsPage'
-import CreatePaymentPage from './pages/CreatePaymentPage'
-import PaymentDetailPage from './pages/PaymentDetailPage'
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const CreatePaymentPage = lazy(() => import('./pages/CreatePaymentPage'))
+const PaymentsPage = lazy(() => import('./pages/PaymentsPage'))
+const PaymentDetailPage = lazy(() => import('./pages/PaymentDetailPage'))
+const RefundsPage = lazy(() => import('./pages/RefundsPage'))
+const CustomersPage = lazy(() => import('./pages/CustomersPage'))
+const TicketsPage = lazy(() => import('./pages/TicketsPage'))
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
+const WebhooksPage = lazy(() => import('./pages/WebhooksPage'))
+const ApiKeysPage = lazy(() => import('./pages/ApiKeysPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const MLMonitoringPage = lazy(() => import('./pages/MLMonitoringPage'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,64 +32,183 @@ const queryClient = new QueryClient({
 
 function AppContent() {
   const { isAuthenticated, email, logout } = useAuth()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const profileMenuRef = useRef<HTMLDivElement | null>(null)
+  const mlMonitoringEnabled = import.meta.env.VITE_ENABLE_ML_MONITORING === 'true'
+
+  const topNavItems = [
+    { to: '/dashboard', label: 'Dashboard' },
+    { to: '/create-payment', label: 'Create Payment' },
+    { to: '/payments', label: 'Payments' },
+    { to: '/refunds', label: 'Refunds' },
+  ]
+
+  const sidebarNavItems = [
+    { to: '/dashboard', label: 'Dashboard' },
+    { to: '/create-payment', label: 'Create Payment' },
+    { to: '/payments', label: 'All Payments' },
+    { to: '/refunds', label: 'Refunds' },
+    { to: '/customers', label: 'Customers' },
+    { to: '/tickets', label: 'Tickets' },
+    { to: '/analytics', label: 'Analytics' },
+    { to: '/webhooks', label: 'Webhooks' },
+    { to: '/api-keys', label: 'API Keys' },
+    ...(mlMonitoringEnabled ? [{ to: '/ml-monitoring', label: 'ML Monitoring' }] : []),
+  ]
+
+  useEffect(() => {
+    if (!profileMenuOpen) return
+
+    const onPointerDown = (event: MouseEvent) => {
+      if (!profileMenuRef.current) return
+      if (!profileMenuRef.current.contains(event.target as Node)) {
+        setProfileMenuOpen(false)
+      }
+    }
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setProfileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onEscape)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onEscape)
+    }
+  }, [profileMenuOpen])
+
+  const userInitial = (email?.trim()?.[0] || 'U').toUpperCase()
   
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
-      {/* Navigation */}
+    <div className="app-shell">
       {isAuthenticated && (
-        <nav style={{
-          background: '#2c3e50',
-          padding: '15px 20px',
-          color: 'white',
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            maxWidth: '1200px',
-            margin: '0 auto',
-          }}>
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-              <h1 style={{ margin: 0, fontSize: '20px' }}>Payment System</h1>
-              <Link to="/dashboard" style={{ color: 'white', textDecoration: 'none' }}>
-                Dashboard
-              </Link>
-              <Link to="/create-payment" style={{ color: 'white', textDecoration: 'none' }}>
-                Create Payment
-              </Link>
-              <Link to="/payments" style={{ color: 'white', textDecoration: 'none' }}>
-                All Payments
-              </Link>
-              <Link to="/webhooks" style={{ color: 'white', textDecoration: 'none' }}>
-                Webhooks
-              </Link>
-              <Link to="/api-keys" style={{ color: 'white', textDecoration: 'none' }}>
-                API Keys
-              </Link>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-              <span style={{ fontSize: '14px' }}>{email}</span>
+        <>
+          <header className="topbar">
+            <div className="topbar__left">
               <button
-                onClick={logout}
-                style={{
-                  padding: '8px 16px',
-                  background: '#e74c3c',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                }}
+                type="button"
+                className="topbar__menu-btn"
+                onClick={() => setSidebarOpen((prev) => !prev)}
+                aria-label="Toggle sidebar"
               >
-                Logout
+                ☰
               </button>
+              <Link to="/dashboard" className="brand">
+                <span className="brand__mark">PS</span>
+                <span>Payment System</span>
+              </Link>
+              <nav className="topbar__nav" aria-label="Primary">
+                {topNavItems.map((item) => (
+                  <NavLink
+                    key={`top-${item.to}`}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `topbar__nav-link${isActive ? ' topbar__nav-link--active' : ''}`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
             </div>
+
+            <div className="topbar__right">
+              <span className="topbar__email">{email}</span>
+              <div className="profile-menu" ref={profileMenuRef}>
+                <button
+                  type="button"
+                  className="profile-menu__trigger"
+                  aria-haspopup="menu"
+                  aria-expanded={profileMenuOpen}
+                  onClick={() => setProfileMenuOpen((prev) => !prev)}
+                >
+                  <span className="profile-menu__avatar">{userInitial}</span>
+                  <span className="profile-menu__chevron" aria-hidden="true">▾</span>
+                </button>
+
+                {profileMenuOpen && (
+                  <div className="profile-menu__dropdown" role="menu" aria-label="Profile menu">
+                    <div className="profile-menu__header">
+                      <div className="profile-menu__avatar profile-menu__avatar--large">{userInitial}</div>
+                      <div className="profile-menu__identity">
+                        <div className="profile-menu__title">Account</div>
+                        <div className="profile-menu__subtitle">{email}</div>
+                      </div>
+                    </div>
+
+                    <div className="profile-menu__items">
+                      <Link
+                        to="/settings"
+                        className="profile-menu__item"
+                        role="menuitem"
+                        onClick={() => setProfileMenuOpen(false)}
+                      >
+                        Settings
+                      </Link>
+                      <Link
+                        to="/api-keys"
+                        className="profile-menu__item"
+                        role="menuitem"
+                        onClick={() => setProfileMenuOpen(false)}
+                      >
+                        API Keys
+                      </Link>
+                      <button
+                        type="button"
+                        className="profile-menu__item profile-menu__item--danger"
+                        role="menuitem"
+                        onClick={() => {
+                          setProfileMenuOpen(false)
+                          logout()
+                        }}
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </header>
+
+          <div className="shell-body">
+            <aside className={`sidebar ${sidebarOpen ? 'sidebar--open' : ''}`}>
+              <div className="sidebar__section-title">Workspace</div>
+              <nav className="sidebar__nav">
+                {sidebarNavItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `sidebar__link${isActive ? ' sidebar__link--active' : ''}`
+                    }
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+            </aside>
+
+            {sidebarOpen && (
+              <button
+                type="button"
+                className="sidebar-backdrop"
+                aria-label="Close sidebar"
+                onClick={() => setSidebarOpen(false)}
+              />
+            )}
           </div>
-        </nav>
+        </>
       )}
       
-      {/* Main Content */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+      <main className={`app-content ${isAuthenticated ? 'app-content--with-sidebar' : ''}`}>
+        <div className="app-content__inner">
+        <Suspense fallback={<RouteLoadingFallback />}>
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
@@ -142,8 +269,77 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/tickets"
+            element={
+              <ProtectedRoute>
+                <TicketsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute>
+                <AnalyticsPage />
+              </ProtectedRoute>
+            }
+          />
+          {mlMonitoringEnabled && (
+            <Route
+              path="/ml-monitoring"
+              element={
+                <ProtectedRoute>
+                  <MLMonitoringPage />
+                </ProtectedRoute>
+              }
+            />
+          )}
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customers"
+              element={
+                <ProtectedRoute>
+                  <CustomersPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/refunds"
+              element={
+                <ProtectedRoute>
+                  <RefundsPage />
+                </ProtectedRoute>
+              }
+            />
         </Routes>
-      </div>
+        </Suspense>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function RouteLoadingFallback() {
+  return (
+    <div
+      style={{
+        padding: '18px',
+        borderRadius: '16px',
+        border: '1px solid rgba(15, 23, 42, 0.08)',
+        background: 'white',
+        color: '#475569',
+      }}
+    >
+      Loading page...
     </div>
   )
 }
@@ -152,9 +348,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </ToastProvider>
       </BrowserRouter>
     </QueryClientProvider>
   )

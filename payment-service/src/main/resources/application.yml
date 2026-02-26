@@ -6,7 +6,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/payment_db
     username: rahul
-    password: Lionelmessi10@  # Change this to your PostgreSQL password
+    password: ${POSTGRES_PASSWORD:}
     driver-class-name: org.postgresql.Driver
     
     hikari:
@@ -23,6 +23,10 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+
+  stripe:
+    api-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
   
   # Flyway Migration
   flyway:
@@ -30,6 +34,18 @@ spring:
     baseline-on-migrate: true
     locations: classpath:db/migration
     schemas: public
+
+  # Kafka (local dev)
+  kafka:
+    # Host-run services should use Docker Kafka's host listener (29092)
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    admin:
+      fail-fast: false
+      auto-create: false
+
+payment:
+  kafka:
+    enabled: ${PAYMENT_KAFKA_ENABLED:false}
 
 # Server Port
 server:
@@ -57,7 +73,7 @@ eureka:
     instance-id: ${spring.application.name}:${server.port}
 
 jwt:
-  secret: my-super-secret-key-for-jwt-token-generation-minimum-256-bits
+  secret: ${JWT_SECRET:}
 
 # Logging
 logging:

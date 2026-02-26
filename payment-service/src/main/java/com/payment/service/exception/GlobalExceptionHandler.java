@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -78,6 +79,27 @@ public class GlobalExceptionHandler {
                 .build())
             .build();
         
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    /**
+     * Handles validation errors from method parameters (@RequestParam, @PathVariable, etc.)
+     */
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleHandlerMethodValidationException(
+            HandlerMethodValidationException ex) {
+
+        log.warn("Handler method validation error occurred: {}", ex.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+            .error(ErrorResponse.ErrorDetail.builder()
+                .type("validation_error")
+                .code("invalid_request")
+                .message("Request validation failed")
+                .timestamp(Instant.now())
+                .build())
+            .build();
+
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
     

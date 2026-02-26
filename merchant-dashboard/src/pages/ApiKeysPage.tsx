@@ -2,122 +2,113 @@ import { useState } from 'react'
 import CreateApiKeyForm from '@/components/apiKeys/CreateApiKeyForm'
 import ApiKeysList from '@/components/apiKeys/ApiKeysList'
 import ApiKeysGuide from '@/components/apiKeys/ApiKeysGuide'
+import './ApiKeysPage.css'
 
 export default function ApiKeysPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   
   return (
-    <div style={{ margin: '20px' }}>
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ marginBottom: '10px' }}>API Keys</h1>
-        <p style={{ color: '#666', fontSize: '14px' }}>
-          Manage your API keys for authentication. Keep your keys secure and never share them publicly.
-        </p>
-      </div>
-      
-      {/* Guide */}
+    <div className="api-keys-page">
+      <section className="api-keys-page__hero">
+        <div>
+          <p className="api-keys-page__eyebrow">Developer Access</p>
+          <h1>API Keys</h1>
+          <p className="api-keys-page__subtitle">
+            Generate, revoke, and audit secret keys used by your backend services and server-side integrations.
+          </p>
+        </div>
+        <div className="api-keys-page__hero-card">
+          <div className="api-keys-page__hero-card-label">Security Rule</div>
+          <div className="api-keys-page__hero-card-value">Server-side only</div>
+          <div className="api-keys-page__hero-card-note">Never expose secret keys in client code</div>
+        </div>
+      </section>
+
       <ApiKeysGuide />
-      
-      {/* Action Button */}
-      <div style={{ marginBottom: '20px' }}>
+
+      <div className="api-keys-page__actions">
         <button
           onClick={() => setShowCreateForm(true)}
-          style={{
-            padding: '12px 24px',
-            background: '#28a745',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '14px',
-          }}
+          className="api-keys-page__primary-btn"
+          type="button"
         >
           + Generate New API Key
         </button>
       </div>
-      
-      {/* API Keys List */}
+
       <ApiKeysList />
-      
-      {/* Create Form Modal */}
+
       {showCreateForm && (
         <CreateApiKeyForm onClose={() => setShowCreateForm(false)} />
       )}
-      
-      {/* Usage Instructions */}
-      <div style={{
-        marginTop: '40px',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
-        padding: '20px',
-      }}>
-        <h3>Quick Start</h3>
-        
-        <div style={{ marginBottom: '20px' }}>
-          <h4>1. Include your API key in requests:</h4>
-          <pre style={{
-            background: '#f5f5f5',
-            padding: '15px',
-            borderRadius: '4px',
-            overflow: 'auto',
-            fontSize: '12px',
-          }}>
-{`Authorization: Bearer sk_test_your_api_key_here`}
-          </pre>
+
+      <section className="api-keys-page__quickstart">
+        <div className="api-keys-page__quickstart-header">
+          <p className="api-keys-page__eyebrow">Quick Start</p>
+          <h3>Authenticate requests and test safely</h3>
+          <p>
+            Use a secret key in your backend service. Pair it with an idempotency key for payment creation and never
+            ship secret keys to browsers or mobile apps.
+          </p>
         </div>
-        
-        <div style={{ marginBottom: '20px' }}>
-          <h4>2. Example: Create a payment</h4>
-          <pre style={{
-            background: '#f5f5f5',
-            padding: '15px',
-            borderRadius: '4px',
-            overflow: 'auto',
-            fontSize: '12px',
-          }}>
-{`curl -X POST https://api.yourpayment.com/v1/payments \\
+
+        <div className="api-keys-page__quickstart-grid">
+          <div className="api-keys-page__snippet-card">
+            <h4>1. Authorization Header</h4>
+            <pre>{`Authorization: Bearer sk_test_your_api_key_here`}</pre>
+          </div>
+
+          <div className="api-keys-page__snippet-card api-keys-page__snippet-card--wide">
+            <h4>2. Example: Create a payment (server-side)</h4>
+            <pre>{`curl -X POST http://localhost:8080/api/v1/payments \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Idempotency-Key: $(uuidgen)" \\
   -H "Content-Type: application/json" \\
   -d '{
     "amount": 10000,
     "currency": "USD",
-    "capture": true,
-    "paymentMethod": {
-      "type": "card",
-      "cardToken": "tok_visa_4242"
-    }
-  }'`}
-          </pre>
+    "customer": {
+      "email": "buyer@example.com",
+      "name": "Test Buyer",
+      "address": {
+        "line1": "1 Demo Street",
+        "city": "Mumbai",
+        "state": "MH",
+        "postalCode": "400001",
+        "country": "IN"
+      }
+    },
+    "capture": true
+  }'`}</pre>
+          </div>
+
+          <div className="api-keys-page__snippet-card">
+            <h4>3. Test Card Numbers</h4>
+            <table className="api-keys-page__cards-table">
+              <thead>
+                <tr>
+                  <th>Card Number</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>4242 4242 4242 4242</code></td>
+                  <td className="api-keys-page__result--success">Success</td>
+                </tr>
+                <tr>
+                  <td><code>4000 0000 0000 0002</code></td>
+                  <td className="api-keys-page__result--danger">Card Declined</td>
+                </tr>
+                <tr>
+                  <td><code>4000 0000 0000 9995</code></td>
+                  <td className="api-keys-page__result--danger">Insufficient Funds</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        
-        <div>
-          <h4>3. Test Cards (Test Mode Only):</h4>
-          <table style={{ width: '100%', fontSize: '12px' }}>
-            <thead>
-              <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Card Number</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style={{ padding: '8px' }}><code>4242 4242 4242 4242</code></td>
-                <td style={{ padding: '8px', color: '#28a745' }}>✓ Success</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '8px' }}><code>4000 0000 0000 0002</code></td>
-                <td style={{ padding: '8px', color: '#dc3545' }}>✗ Card Declined</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '8px' }}><code>4000 0000 0000 9995</code></td>
-                <td style={{ padding: '8px', color: '#dc3545' }}>✗ Insufficient Funds</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      </section>
     </div>
   )
 }

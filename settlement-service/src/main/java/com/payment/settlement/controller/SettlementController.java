@@ -2,6 +2,8 @@ package com.payment.settlement.controller;
 
 import com.payment.settlement.entity.Payout;
 import com.payment.settlement.entity.SettlementBatch;
+import com.payment.settlement.dto.ReserveReportResponse;
+import com.payment.settlement.dto.SettlementReportResponse;
 import com.payment.settlement.scheduler.SettlementScheduler;
 import com.payment.settlement.service.SettlementService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +40,23 @@ public class SettlementController {
     public ResponseEntity<List<Payout>> getMerchantPayouts(@PathVariable UUID merchantId) {
         List<Payout> payouts = settlementService.getMerchantPayouts(merchantId);
         return ResponseEntity.ok(payouts);
+    }
+
+    @Operation(summary = "Get settlement report for a date range")
+    @GetMapping("/reports")
+    public ResponseEntity<SettlementReportResponse> getSettlementReport(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ResponseEntity.ok(settlementService.getSettlementReport(startDate, endDate));
+    }
+
+    @Operation(summary = "Get reserve report for a date range (optionally filtered by merchant)")
+    @GetMapping("/reserves")
+    public ResponseEntity<ReserveReportResponse> getReserveReport(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) UUID merchantId) {
+        return ResponseEntity.ok(settlementService.getReserveReport(startDate, endDate, merchantId));
     }
     
     @Operation(summary = "Trigger manual settlement (admin only)")

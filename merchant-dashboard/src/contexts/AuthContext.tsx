@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { authApi, type AuthResponse } from '@/api/auth'
+import { useToast } from '@/contexts/ToastContext'
 
 interface AuthContextType {
   isAuthenticated: boolean
@@ -14,6 +15,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const toast = useToast()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [merchantId, setMerchantId] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
@@ -54,7 +56,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('merchant_email', response.email)
     
     if (response.apiKey) {
-      alert(`Your API Key (save this, it won't be shown again):\n\n${response.apiKey}`)
+      toast.info(`Your API Key (save this, it won't be shown again):\n\n${response.apiKey}`, {
+        title: 'Registration Complete',
+        durationMs: 12000,
+      })
     }
     
     setIsAuthenticated(true)

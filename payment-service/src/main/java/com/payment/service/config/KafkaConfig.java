@@ -6,6 +6,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -20,6 +21,7 @@ import java.util.Map;
 
 @Configuration
 @EnableKafka
+@ConditionalOnProperty(name = "payment.kafka.enabled", havingValue = "true")
 public class KafkaConfig {
     
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
@@ -39,6 +41,10 @@ public class KafkaConfig {
         config.put(ProducerConfig.RETRIES_CONFIG, 3);
         config.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
         config.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
+        // Fail fast when Kafka is unavailable so payment APIs don't block for 60s.
+        config.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 2000);
+        config.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 3000);
+        config.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 5000);
         config.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
         
         return new DefaultKafkaProducerFactory<>(config);

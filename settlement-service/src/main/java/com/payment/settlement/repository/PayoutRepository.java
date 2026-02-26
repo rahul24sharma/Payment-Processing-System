@@ -15,6 +15,12 @@ import java.util.UUID;
 public interface PayoutRepository extends JpaRepository<Payout, UUID> {
     
     List<Payout> findByMerchantIdOrderBySettlementDateDesc(UUID merchantId);
+
+    List<Payout> findByMerchantIdAndSettlementDateBetweenOrderBySettlementDateDesc(
+        UUID merchantId,
+        LocalDate start,
+        LocalDate end
+    );
     
     List<Payout> findByStatus(PayoutStatus status);
     

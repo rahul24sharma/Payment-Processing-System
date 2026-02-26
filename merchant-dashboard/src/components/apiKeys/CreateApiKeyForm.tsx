@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useCreateApiKey } from '@/hooks/useApiKeys'
+import { useToast } from '@/contexts/ToastContext'
+import './ApiKeys.css'
 
 export default function CreateApiKeyForm({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('')
   const [isLive, setIsLive] = useState(false)
   const [generatedKey, setGeneratedKey] = useState<string | null>(null)
+  const toast = useToast()
   
   const createApiKey = useCreateApiKey()
   
@@ -15,14 +18,14 @@ export default function CreateApiKeyForm({ onClose }: { onClose: () => void }) {
       const result = await createApiKey.mutateAsync({ name, isLive })
       setGeneratedKey(result.key)
     } catch (error: any) {
-      alert(`Error: ${error.response?.data?.error?.message || error.message}`)
+      toast.error(error.response?.data?.error?.message || error.message)
     }
   }
   
   const handleCopy = () => {
     if (generatedKey) {
       navigator.clipboard.writeText(generatedKey)
-      alert('API key copied to clipboard!')
+      toast.success('API key copied to clipboard!')
     }
   }
   
@@ -34,127 +37,72 @@ export default function CreateApiKeyForm({ onClose }: { onClose: () => void }) {
   }
   
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '30px',
-        borderRadius: '8px',
-        maxWidth: '600px',
-        width: '100%',
-      }}>
+    <div className="api-key-modal" role="dialog" aria-modal="true" aria-label="Generate API key">
+      <button className="api-key-modal__backdrop" onClick={onClose} aria-label="Close modal" type="button" />
+      <div className="api-key-modal__panel">
         {!generatedKey ? (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0 }}>Generate API Key</h2>
-              <button
-                onClick={onClose}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                }}
-              >
+            <div className="api-key-modal__header">
+              <h2>Generate API Key</h2>
+              <button onClick={onClose} className="api-key-modal__close" type="button" aria-label="Close">
                 ×
               </button>
             </div>
-            
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                  Key Name
-                </label>
+
+            <form onSubmit={handleSubmit} className="api-key-form">
+              <div className="api-key-form__field">
+                <label htmlFor="api-key-name">Key Name</label>
                 <input
+                  id="api-key-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g., Production Server, Development, Mobile App"
                   required
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                  }}
                 />
-                <small style={{ color: '#666', fontSize: '12px' }}>
+                <small className="api-key-form__hint">
                   Give this key a descriptive name to identify where it's used
                 </small>
               </div>
-              
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+
+              <label className="api-key-form__toggle">
                   <input
                     type="checkbox"
                     checked={isLive}
                     onChange={(e) => setIsLive(e.target.checked)}
-                    style={{ marginRight: '10px' }}
                   />
                   <div>
-                    <div style={{ fontWeight: 'bold' }}>
+                    <div className="api-key-form__toggle-title">
                       Live Mode {isLive && '(Real payments)'}
                     </div>
-                    <small style={{ color: '#666', fontSize: '12px' }}>
+                    <div className="api-key-form__toggle-subtitle">
                       {isLive 
-                        ? '⚠️ This key will process real payments and charge real cards'
-                        : '✓ This key is for testing only (no real charges)'}
-                    </small>
+                        ? 'This key will process real payments and charge real cards'
+                        : 'This key is for testing only (no real charges)'}
+                    </div>
                   </div>
-                </label>
-              </div>
-              
-              <div style={{
-                background: isLive ? '#fff3cd' : '#d1ecf1',
-                padding: '15px',
-                borderRadius: '4px',
-                marginBottom: '20px',
-              }}>
+              </label>
+
+              <div className={`api-key-form__callout ${isLive ? 'api-key-form__callout--live' : 'api-key-form__callout--test'}`}>
                 <strong>{isLive ? '⚠️ Warning:' : 'ℹ️ Info:'}</strong>
                 {isLive 
                   ? ' Live mode keys can process real payments. Keep them secure!'
                   : ' Test mode keys use test cards and won\'t charge real money.'}
               </div>
-              
-              <div style={{ display: 'flex', gap: '10px' }}>
+
+              <div className="api-key-form__actions">
                 <button
                   type="submit"
                   disabled={createApiKey.isPending}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    background: createApiKey.isPending ? '#ccc' : (isLive ? '#dc3545' : '#007bff'),
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: createApiKey.isPending ? 'not-allowed' : 'pointer',
-                    fontWeight: 'bold',
-                  }}
+                  className={`api-key-form__submit ${isLive ? 'api-key-form__submit--live' : ''}`}
                 >
                   {createApiKey.isPending ? 'Generating...' : 'Generate API Key'}
                 </button>
-                
+
                 <button
                   type="button"
                   onClick={onClose}
-                  style={{
-                    padding: '12px 24px',
-                    background: '#6c757d',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                  }}
+                  className="api-key-form__cancel"
                 >
                   Cancel
                 </button>
@@ -162,66 +110,31 @@ export default function CreateApiKeyForm({ onClose }: { onClose: () => void }) {
             </form>
           </>
         ) : (
-          <>
-            <h2 style={{ color: '#28a745', marginBottom: '20px' }}>✅ API Key Generated!</h2>
-            
-            <div style={{
-              background: '#fff3cd',
-              padding: '15px',
-              borderRadius: '4px',
-              marginBottom: '20px',
-              border: '2px solid #ffc107',
-            }}>
+          <div className="api-key-form__result">
+            <h2 className="api-key-form__result-title">API Key Generated</h2>
+
+            <div className="api-key-form__warning">
               <strong>⚠️ Important:</strong> This is the only time you'll see this key. 
               Copy it now and store it securely!
             </div>
-            
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                Your API Key:
-              </label>
-              <div style={{
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'center',
-              }}>
-                <code style={{
-                  flex: 1,
-                  background: '#f5f5f5',
-                  padding: '12px',
-                  borderRadius: '4px',
-                  fontFamily: 'monospace',
-                  fontSize: '14px',
-                  wordBreak: 'break-all',
-                  border: '2px solid #28a745',
-                }}>
-                  {generatedKey}
-                </code>
+
+            <div className="api-key-form__field">
+              <label>Your API Key</label>
+              <div className="api-key-form__secret-row">
+                <code className="api-key-form__secret-code">{generatedKey}</code>
                 <button
                   onClick={handleCopy}
-                  style={{
-                    padding: '12px 20px',
-                    background: '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className="api-key-form__copy"
+                  type="button"
                 >
-                  📋 Copy
+                  Copy
                 </button>
               </div>
             </div>
-            
-            <div style={{
-              background: '#f5f5f5',
-              padding: '15px',
-              borderRadius: '4px',
-              marginBottom: '20px',
-            }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>Quick Start:</div>
-              <pre style={{ fontSize: '12px', overflow: 'auto' }}>
+
+            <div className="api-key-form__snippet">
+              <div className="api-key-form__snippet-title">Quick Start</div>
+              <pre>
 {`curl -X POST http://localhost:8080/api/v1/payments \\
   -H "Authorization: Bearer ${generatedKey}" \\
   -H "Idempotency-Key: \$(uuidgen)" \\
@@ -229,28 +142,30 @@ export default function CreateApiKeyForm({ onClose }: { onClose: () => void }) {
   -d '{
     "amount": 10000,
     "currency": "USD",
-    "capture": true,
-    "paymentMethod": {"type": "card", "cardToken": "tok_visa"}
+    "customer": {
+      "email": "buyer@example.com",
+      "name": "Test Buyer",
+      "address": {
+        "line1": "1 Demo Street",
+        "city": "Mumbai",
+        "state": "MH",
+        "postalCode": "400001",
+        "country": "IN"
+      }
+    },
+    "capture": true
   }'`}
               </pre>
             </div>
-            
+
             <button
               onClick={handleDone}
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: '#28a745',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
+              className="api-key-form__done"
+              type="button"
             >
               Done
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>

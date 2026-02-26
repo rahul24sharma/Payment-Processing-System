@@ -1,5 +1,8 @@
 package com.payment.ledger.service;
 
+import com.payment.ledger.dto.CreateLedgerEntryGroupRequest;
+import com.payment.ledger.dto.LedgerEntryGroupResponse;
+import com.payment.ledger.dto.ReconciliationReportResponse;
 import com.payment.ledger.entity.AccountBalance;
 import com.payment.ledger.entity.AccountType;
 import com.payment.ledger.entity.LedgerEntry;
@@ -261,5 +264,89 @@ public class LedgerService {
     @Transactional(readOnly = true)
     public List<LedgerEntry> getAccountEntries(UUID accountId) {
         return ledgerEntryRepository.findByAccountIdOrderByCreatedAtDesc(accountId);
+    }
+
+    /**
+     * Manually create a balanced ledger entry group.
+     */
+    public LedgerEntryGroupResponse createEntryGroup(CreateLedgerEntryGroupRequest request) {
+        UUID entryGroupId = UUID.randomUUID();
+        List<LedgerEntry> entries = new ArrayList<>();
+
+        for (CreateLedgerEntryGroupRequest.EntryLine line : request.getEntries()) {
+            BigDecimal debit = line.getDebitAmount() != null ? line.getDebitAmount() : BigDecimal.ZERO;
+            BigDecimal credit = line.getCreditAmount() != null ? line.getCreditAmount() : BigDecimal.ZERO;
+
+            LedgerEntry entry = LedgerEntry.builder()
+                .entryGroupId(entryGroupId)
+                .accountId(line.getAccountId())
+                .accountType(line.getAccountType())
+                .debitAmount(debit)
+                .creditAmount(credit)
+                .currency(request.getCurrency())
+                .paymentId(request.getPaymentId())
+                .refundId(request.getRefundId())
+                .settlementId(request.getSettlementId())
+                .description(line.getDescription() != null ? line.getDescription() : request.getDescription())
+                .build();
+
+            entries.add(entry);
+        }
+
+        List<LedgerEntry> saved = ledgerEntryRepository.saveAll(entries);
+        validateBalance(entryGroupId);
+
+        for (LedgerEntry entry : saved) {
+            BigDecimal netChange = entry.getCreditAmount().subtract(entry.getDebitAmount());
+            updateBalance(entry.getAccountId(), entry.getAccountType(), netChange, entry.getCurrency());
+        }
+
+        BigDecimal totalDebits = saved.stream()
+            .map(LedgerEntry::getDebitAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalCredits = saved.stream()
+            .map(LedgerEntry::getCreditAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return LedgerEntryGroupResponse.builder()
+            .entryGroupId(entryGroupId)
+            .currency(request.getCurrency())
+            .paymentId(request.getPaymentId())
+            .refundId(request.getRefundId())
+            .settlementId(request.getSettlementId())
+            .description(request.getDescription())
+            .totalDebits(totalDebits)
+            .totalCredits(totalCredits)
+            .entryCount(saved.size())
+            .ledgerEntryIds(saved.stream().map(LedgerEntry::getId).toList())
+            .build();
+    }
+
+    /**
+     * Basic reconciliation report for a time window.
+     */
+    @Transactional(readOnly = true)
+    public ReconciliationReportResponse getReconciliationReport(Instant start, Instant end) {
+        List<LedgerEntry> entries = ledgerEntryRepository.findEntriesBetween(start, end);
+        List<UUID> entryGroups = ledgerEntryRepository.findEntryGroupsByDateRange(start, end);
+
+        BigDecimal totalDebits = entries.stream()
+            .map(LedgerEntry::getDebitAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalCredits = entries.stream()
+            .map(LedgerEntry::getCreditAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal difference = totalDebits.subtract(totalCredits);
+
+        return ReconciliationReportResponse.builder()
+            .start(start)
+            .end(end)
+            .totalEntries(entries.size())
+            .totalEntryGroups(entryGroups.size())
+            .totalDebits(totalDebits)
+            .totalCredits(totalCredits)
+            .balanced(difference.compareTo(BigDecimal.ZERO) == 0)
+            .difference(difference)
+            .build();
     }
 }

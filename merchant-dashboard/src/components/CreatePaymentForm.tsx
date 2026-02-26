@@ -1,140 +1,406 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useCreatePayment } from '@/hooks/usePayments'
-import type { CreatePaymentRequest } from '@/types/payment'
+import { paymentsApi } from '@/api/payments'
+import { useToast } from '@/contexts/ToastContext'
+import type { CreatePaymentRequest, Payment } from '@/types/payment'
+import './CreatePaymentForm.css'
 
 export default function CreatePaymentForm() {
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
-  const [cardToken] = useState('tok_visa_4242') // Mock token
+  const [addressLine1, setAddressLine1] = useState('')
+  const [addressLine2, setAddressLine2] = useState('')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [postalCode, setPostalCode] = useState('')
+  const [country, setCountry] = useState('IN')
+  const [scaMessage, setScaMessage] = useState<string | null>(null)
+  const [lastPaymentStatus, setLastPaymentStatus] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [isFinalizingAuth, setIsFinalizingAuth] = useState(false)
+  const [stripeReady, setStripeReady] = useState(false)
+  const cardElementRef = useRef<StripeCardElement | null>(null)
+  const cardMountRef = useRef<HTMLDivElement | null>(null)
+  const stripeRef = useRef<StripeInstance | null>(null)
+  const stripeInitRef = useRef(false)
   
   const createPayment = useCreatePayment()
+  const toast = useToast()
+
+  useEffect(() => {
+    if (stripeInitRef.current) return
+    if (!cardMountRef.current) return
+
+    const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined
+    if (!publishableKey || !window.Stripe) {
+      return
+    }
+
+    const stripe = window.Stripe(publishableKey)
+    const elements = stripe.elements()
+    const card = elements.create('card')
+    card.mount(cardMountRef.current)
+
+    stripeRef.current = stripe
+    cardElementRef.current = card
+    stripeInitRef.current = true
+    setStripeReady(true)
+
+    return () => {
+      card.destroy()
+      cardElementRef.current = null
+      stripeRef.current = null
+      stripeInitRef.current = false
+      setStripeReady(false)
+    }
+  }, [])
+
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  const shouldContinuePolling = (status?: string) =>
+    status === 'pending' || status === 'authorized'
+
+  const waitForPaymentSettlement = async (paymentId: string, seed?: Payment) => {
+    let current = seed
+    const startedAt = Date.now()
+    const timeoutMs = 20_000
+
+    while (Date.now() - startedAt < timeoutMs) {
+      if (current && !shouldContinuePolling(current.status)) {
+        return current
+      }
+      await sleep(2000)
+      current = await paymentsApi.get(paymentId)
+      setScaMessage(`Waiting for final payment status... current: ${current.status}`)
+    }
+    return current ?? paymentsApi.get(paymentId)
+  }
+
+  const isPaymentServiceUnavailableError = (error: any) => {
+    const data = error?.response?.data
+    return (
+      data?.service === 'payment-service' &&
+      typeof data?.message === 'string' &&
+      data.message.includes('currently unavailable')
+    )
+  }
+
+  const toPaymentFlowMessage = (error: any) => {
+    const raw =
+      error?.response?.data?.error?.message ||
+      error?.response?.data?.message ||
+      error?.message ||
+      'Unknown error'
+
+    const lower = String(raw).toLowerCase()
+    if (lower.includes('authentication failed')) return 'Authentication was not completed. Please try again.'
+    if (lower.includes('authentication canceled') || lower.includes('canceled')) return 'Authentication was canceled. You can retry from the payment detail page.'
+    if (lower.includes('currently unavailable')) return 'Payment service is temporarily unavailable. Please retry in a few seconds.'
+    if (lower.includes('timed out') || lower.includes('timeout')) return 'The request timed out while finalizing payment. Check the payment list before retrying.'
+    if (lower.includes('card was declined') || lower.includes('declined')) return raw
+    return raw
+  }
+
+  const completeAuthenticationWithRetry = async (paymentId: string) => {
+    const delays = [0, 1200, 2500, 4000]
+    let lastError: any
+
+    for (let attempt = 0; attempt < delays.length; attempt += 1) {
+      if (delays[attempt] > 0) {
+        setScaMessage(`Payment service reconnecting... retrying (${attempt + 1}/${delays.length})`)
+        await sleep(delays[attempt])
+      }
+
+      try {
+        setScaMessage('Authentication completed. Finalizing payment with backend...')
+        return await paymentsApi.completeAuthentication(paymentId)
+      } catch (error: any) {
+        lastError = error
+        if (!isPaymentServiceUnavailableError(error) || attempt === delays.length - 1) {
+          throw error
+        }
+      }
+    }
+
+    throw lastError
+  }
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    const request: CreatePaymentRequest = {
-      amount: Math.round(parseFloat(amount) * 100), // Convert to cents
-      currency,
-      paymentMethod: {
-        type: 'card',
-        cardToken,
-      },
-      customer: {
-        email,
-        name: name || undefined,
-      },
-      capture: true,
-    }
-    
     try {
-      const payment = await createPayment.mutateAsync(request)
-      alert(`Payment created! ID: ${payment.id}, Status: ${payment.status}`)
+      if (!stripeRef.current || !cardElementRef.current) {
+        throw new Error('Stripe card form is not ready. Refresh and try again.')
+      }
+
+      const paymentMethodResult = await stripeRef.current.createPaymentMethod({
+        type: 'card',
+        card: cardElementRef.current,
+        billing_details: {
+          name: name || undefined,
+          email: email || undefined,
+          address: {
+            line1: addressLine1 || undefined,
+            line2: addressLine2 || undefined,
+            city: city || undefined,
+            state: state || undefined,
+            postal_code: postalCode || undefined,
+            country: country || undefined,
+          },
+        },
+      })
+
+      if (paymentMethodResult.error || !paymentMethodResult.paymentMethod?.id) {
+        throw new Error(paymentMethodResult.error?.message || 'Failed to create Stripe payment method')
+      }
+
+      const request: CreatePaymentRequest = {
+        amount: Math.round(parseFloat(amount) * 100), // Convert to cents
+        currency,
+        paymentMethod: {
+          type: 'card',
+          savedPaymentMethodId: paymentMethodResult.paymentMethod.id,
+        },
+        customer: {
+          email,
+          name: name || undefined,
+          address: {
+            line1: addressLine1 || undefined,
+            line2: addressLine2 || undefined,
+            city: city || undefined,
+            state: state || undefined,
+            postalCode: postalCode || undefined,
+            country: country || undefined,
+          },
+        },
+        capture: true,
+      }
+
+      setFormError(null)
+      setScaMessage(null)
+      setLastPaymentStatus(null)
+      setIsFinalizingAuth(false)
+      let payment = await createPayment.mutateAsync(request)
+
+      if (payment.nextAction?.type === 'use_stripe_sdk' && payment.nextAction.clientSecret) {
+        setScaMessage('Additional authentication required. Opening Stripe authentication...')
+
+        if (!stripeRef.current) {
+          throw new Error(
+            'Stripe is not initialized. Refresh and try again.'
+          )
+        }
+
+        const stripeResult = await stripeRef.current.confirmCardPayment(payment.nextAction.clientSecret)
+
+        if (stripeResult.error) {
+          throw new Error(stripeResult.error.message || 'Stripe authentication failed')
+        }
+
+        setIsFinalizingAuth(true)
+        payment = await completeAuthenticationWithRetry(payment.id)
+        setIsFinalizingAuth(false)
+      }
+
+      if (shouldContinuePolling(payment.status)) {
+        setScaMessage(`Waiting for final payment status... current: ${payment.status}`)
+        payment = await waitForPaymentSettlement(payment.id, payment)
+      }
+
+      toast.success(`Payment created! ID: ${payment.id}, Status: ${payment.status}`)
+      setScaMessage(null)
+      setLastPaymentStatus(payment.status)
       
       // Reset form
       setAmount('')
       setEmail('')
       setName('')
+      setAddressLine1('')
+      setAddressLine2('')
+      setCity('')
+      setState('')
+      setPostalCode('')
+      setCountry('IN')
     } catch (error: any) {
-      alert(`Error: ${error.response?.data?.error?.message || error.message}`)
+      setIsFinalizingAuth(false)
+      setScaMessage(null)
+      setLastPaymentStatus(null)
+      const message = toPaymentFlowMessage(error)
+      setFormError(message || 'Unknown error')
+      toast.error(message || 'Unknown error')
     }
   }
   
   return (
-    <div style={{ maxWidth: '500px', margin: '20px' }}>
-      <h2>Create Payment</h2>
-      
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '15px' }}>
-          <label>
-            Amount ($):
-            <input
-              type="number"
-              step="0.01"
-              min="0.50"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-            />
-          </label>
+    <div className="cpf">
+      <div className="cpf__card">
+        <div className="cpf__header">
+          <div>
+            <p className="cpf__eyebrow">Payment Request</p>
+            <h2>Create payment intent</h2>
+          </div>
+          <span className="cpf__badge">{stripeReady ? 'Stripe Ready' : 'Initializing Stripe...'}</span>
         </div>
-        
-        <div style={{ marginBottom: '15px' }}>
-          <label>
-            Currency:
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+
+        <form className="cpf__form" onSubmit={handleSubmit}>
+          <section className="cpf__section">
+            <h3>Amount</h3>
+            <div className="cpf__grid cpf__grid--2">
+              <label className="cpf__field">
+                <span>Amount</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.50"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                  placeholder="100.00"
+                />
+              </label>
+
+              <label className="cpf__field">
+                <span>Currency</span>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                >
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section className="cpf__section">
+            <h3>Customer</h3>
+            <div className="cpf__grid cpf__grid--2">
+              <label className="cpf__field">
+                <span>Email</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="customer@example.com"
+                />
+              </label>
+
+              <label className="cpf__field">
+                <span>Full name</span>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  placeholder="Aarav Sharma"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="cpf__section">
+            <h3>Billing Address</h3>
+            <div className="cpf__grid cpf__grid--2">
+              <label className="cpf__field cpf__field--full">
+                <span>Address line 1</span>
+                <input
+                  type="text"
+                  value={addressLine1}
+                  onChange={(e) => setAddressLine1(e.target.value)}
+                  required
+                />
+              </label>
+
+              <label className="cpf__field cpf__field--full">
+                <span>Address line 2 <em>(optional)</em></span>
+                <input
+                  type="text"
+                  value={addressLine2}
+                  onChange={(e) => setAddressLine2(e.target.value)}
+                />
+              </label>
+
+              <label className="cpf__field">
+                <span>City</span>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  required
+                />
+              </label>
+
+              <label className="cpf__field">
+                <span>State</span>
+                <input
+                  type="text"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  required
+                />
+              </label>
+
+              <label className="cpf__field">
+                <span>Postal code</span>
+                <input
+                  type="text"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  required
+                />
+              </label>
+
+              <label className="cpf__field">
+                <span>Country (ISO2)</span>
+                <input
+                  type="text"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value.toUpperCase())}
+                  required
+                  minLength={2}
+                  maxLength={2}
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="cpf__section">
+            <h3>Card Details</h3>
+            <label className="cpf__field">
+              <span>Stripe Card Element</span>
+              <div className="cpf__card-element" ref={cardMountRef} />
+            </label>
+            <p className="cpf__hint">
+              Use a Stripe test card like <strong>4242 4242 4242 4242</strong>. SCA test cards can be used to verify auth flows.
+            </p>
+          </section>
+
+          <div className="cpf__actions">
+            <button
+              className="cpf__submit"
+              type="submit"
+              disabled={createPayment.isPending || isFinalizingAuth || !stripeReady}
             >
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-            </select>
-          </label>
-        </div>
-        
-        <div style={{ marginBottom: '15px' }}>
-          <label>
-            Customer Email:
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-            />
-          </label>
-        </div>
-        
-        <div style={{ marginBottom: '15px' }}>
-          <label>
-            Customer Name (optional):
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-            />
-          </label>
-        </div>
-        
-        <div style={{ marginBottom: '15px', padding: '10px', background: '#f0f0f0' }}>
-          <small>
-            Test Card: Visa ending in 4242 (auto-approve)
-            <br />
-            Card Token: {cardToken}
-          </small>
-        </div>
-        
-        <button
-          type="submit"
-          disabled={createPayment.isPending}
-          style={{
-            width: '100%',
-            padding: '12px',
-            background: createPayment.isPending ? '#ccc' : '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: createPayment.isPending ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {createPayment.isPending ? 'Processing...' : 'Create Payment'}
-        </button>
-      </form>
-      
-      {createPayment.isError && (
-        <div style={{ marginTop: '15px', padding: '10px', background: '#ffebee', color: 'red' }}>
-          Error: {(createPayment.error as any)?.response?.data?.error?.message || 'Unknown error'}
-        </div>
-      )}
-      
-      {createPayment.isSuccess && (
-        <div style={{ marginTop: '15px', padding: '10px', background: '#e8f5e9', color: 'green' }}>
-          ✅ Payment created successfully! Status: {createPayment.data.status}
+              {createPayment.isPending || isFinalizingAuth
+                ? 'Processing...'
+                : !stripeReady
+                  ? 'Loading Card Form...'
+                  : 'Create Payment'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {formError && <div className="cpf__alert cpf__alert--error" role="alert" aria-live="assertive">Error: {formError}</div>}
+      {scaMessage && <div className="cpf__alert cpf__alert--info" role="status" aria-live="polite">{scaMessage}</div>}
+      {createPayment.isSuccess && lastPaymentStatus && (
+        <div className="cpf__alert cpf__alert--success" role="status" aria-live="polite">
+          Payment created successfully. Status: {lastPaymentStatus}
         </div>
       )}
     </div>

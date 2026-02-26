@@ -1,0 +1,139 @@
+.confirm-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.confirm-dialog__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.54);
+  cursor: pointer;
+}
+
+.confirm-dialog__panel {
+  position: relative;
+  width: min(520px, 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.24);
+  padding: 16px;
+}
+
+.confirm-dialog__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.confirm-dialog__header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.confirm-dialog__close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #dbe2ea;
+  background: #fff;
+  color: #475569;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.confirm-dialog__close:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.confirm-dialog__panel:focus-visible,
+.confirm-dialog__close:focus-visible,
+.confirm-dialog__btn:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 2px;
+}
+
+.confirm-dialog__body {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.confirm-dialog__body p {
+  margin: 0;
+}
+
+.confirm-dialog__body code {
+  display: inline-block;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 2px 6px;
+  color: #0f172a;
+  word-break: break-all;
+}
+
+.confirm-dialog__actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.confirm-dialog__btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.confirm-dialog__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.confirm-dialog__btn--neutral {
+  background: #64748b;
+}
+
+.confirm-dialog__btn--default {
+  background: linear-gradient(135deg, #165dff, #2563eb);
+}
+
+.confirm-dialog__btn--danger {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+}
+
+.confirm-dialog__btn--warning {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+
+.confirm-dialog__btn--success {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+}
+
+@media (max-width: 640px) {
+  .confirm-dialog {
+    padding: 10px;
+  }
+
+  .confirm-dialog__actions {
+    flex-direction: column-reverse;
+  }
+
+  .confirm-dialog__btn {
+    width: 100%;
+  }
+}

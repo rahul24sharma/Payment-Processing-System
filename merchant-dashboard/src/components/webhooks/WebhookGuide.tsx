@@ -1,41 +1,31 @@
+import './Webhooks.css'
+
 export default function WebhookGuide() {
-    return (
-      <div style={{
-        border: '1px solid #d1ecf1',
-        background: '#d1ecf1',
-        padding: '20px',
-        borderRadius: '8px',
-        marginBottom: '30px',
-      }}>
-        <h3 style={{ marginTop: 0, color: '#0c5460' }}>How Webhooks Work</h3>
-        
-        <ol style={{ marginBottom: '15px', color: '#0c5460' }}>
-          <li style={{ marginBottom: '8px' }}>
-            <strong>Configure an endpoint</strong> - Provide an HTTPS URL where you want to receive notifications
-          </li>
-          <li style={{ marginBottom: '8px' }}>
-            <strong>Select events</strong> - Choose which payment events to subscribe to
-          </li>
-          <li style={{ marginBottom: '8px' }}>
-            <strong>Verify signatures</strong> - Use the webhook secret to verify requests are from us
-          </li>
-          <li style={{ marginBottom: '8px' }}>
-            <strong>Return 200 OK</strong> - Respond quickly to acknowledge receipt
-          </li>
-        </ol>
-        
-        <details style={{ marginTop: '15px' }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: '#0c5460' }}>
-            Example: Verify Webhook Signature (Node.js)
-          </summary>
-          <pre style={{
-            background: '#fff',
-            padding: '15px',
-            borderRadius: '4px',
-            overflow: 'auto',
-            marginTop: '10px',
-            fontSize: '12px',
-          }}>
+  return (
+    <section className="webhook-guide">
+      <div className="webhook-guide__header">
+        <h3>How Webhooks Work</h3>
+        <p>Endpoints receive signed POST requests for subscribed payment events. Acknowledge quickly and process safely.</p>
+      </div>
+
+      <ol className="webhook-guide__steps">
+        <li>
+          <strong>Configure an endpoint</strong> - Provide an HTTPS URL where you want to receive notifications
+        </li>
+        <li>
+          <strong>Select events</strong> - Choose which payment events to subscribe to
+        </li>
+        <li>
+          <strong>Verify signatures</strong> - Use the webhook secret to verify requests are from us
+        </li>
+        <li>
+          <strong>Return 200 OK</strong> - Respond quickly to acknowledge receipt
+        </li>
+      </ol>
+
+      <details className="webhook-guide__details">
+        <summary>Example: Verify Webhook Signature (Node.js)</summary>
+        <pre className="webhook-guide__code">
   {`const crypto = require('crypto');
   
   app.post('/webhooks', (req, res) => {
@@ -63,13 +53,13 @@ export default function WebhookGuide() {
     // Acknowledge receipt
     res.status(200).send('OK');
   });`}
-          </pre>
-        </details>
-        
-        <div style={{ marginTop: '15px', padding: '10px', background: '#fff3cd', borderRadius: '4px' }}>
-          <strong>⚠️ Important:</strong> Always respond with 200 OK within 5 seconds. 
-          Process webhooks asynchronously to avoid timeouts.
-        </div>
+        </pre>
+      </details>
+
+      <div className="webhook-guide__warning">
+        <strong>Important:</strong> Always respond with `200 OK` within 5 seconds. Process webhook jobs asynchronously to
+        avoid retries and delivery timeouts.
       </div>
-    )
-  }
+    </section>
+  )
+}

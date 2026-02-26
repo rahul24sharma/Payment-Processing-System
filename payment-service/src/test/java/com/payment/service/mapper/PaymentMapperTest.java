@@ -6,6 +6,7 @@ import com.payment.service.dto.response.PaymentResponse;
 import com.payment.service.entity.Money;
 import com.payment.service.entity.Payment;
 import com.payment.service.entity.PaymentStatus;
+import com.payment.service.repository.CustomerRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -13,9 +14,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class PaymentMapperTest {
     
@@ -23,7 +28,9 @@ class PaymentMapperTest {
     
     @BeforeEach
     void setUp() {
-        mapper = new PaymentMapper();
+        CustomerRepository customerRepository = mock(CustomerRepository.class);
+        when(customerRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
+        mapper = new PaymentMapper(customerRepository);
     }
     
     @Test

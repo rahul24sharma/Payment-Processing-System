@@ -1,6 +1,8 @@
 import { apiClient } from './client'
 import type { Payment, CreatePaymentRequest, RefundRequest, Refund } from '@/types/payment'
 
+const LONG_PAYMENT_TIMEOUT_MS = 90_000
+
 export const paymentsApi = {
   /**
    * Create a new payment
@@ -12,6 +14,7 @@ export const paymentsApi = {
       headers: {
         'Idempotency-Key': idempotencyKey,
       },
+      timeout: LONG_PAYMENT_TIMEOUT_MS,
     })
     
     return response.data
@@ -43,6 +46,15 @@ export const paymentsApi = {
     const response = await apiClient.post<Payment>(`/payments/${id}/capture`, {
       amount,
     })
+    return response.data
+  },
+
+  completeAuthentication: async (id: string): Promise<Payment> => {
+    const response = await apiClient.post<Payment>(
+      `/payments/${id}/complete-authentication`,
+      undefined,
+      { timeout: LONG_PAYMENT_TIMEOUT_MS }
+    )
     return response.data
   },
 

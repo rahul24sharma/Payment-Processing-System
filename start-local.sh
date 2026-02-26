@@ -10,14 +10,14 @@ LOG_DIR="$RUN_DIR/logs"
 mkdir -p "$PID_DIR" "$LOG_DIR"
 
 SERVICES=(
-  "eureka-server|8761|./mvnw spring-boot:run"
-  "merchant-service|8086|./mvnw spring-boot:run"
-  "fraud-service|8082|./mvnw spring-boot:run"
-  "payment-service|8081|./mvnw spring-boot:run"
-  "ledger-service|8083|./mvnw spring-boot:run"
-  "settlement-service|8084|./mvnw spring-boot:run"
-  "notification-service|8085|./mvnw spring-boot:run"
-  "api-gateway|8080|./mvnw spring-boot:run"
+  "eureka-server|8761|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
+  "merchant-service|8086|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
+  "fraud-service|8082|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
+  "payment-service|8081|env SPRING_DEVTOOLS_RESTART_ENABLED=false PAYMENT_KAFKA_ENABLED=true KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
+  "ledger-service|8083|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
+  "settlement-service|8084|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
+  "notification-service|8085|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
+  "api-gateway|8080|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
 )
 
 FRONTEND_NAME="merchant-dashboard"
@@ -156,21 +156,31 @@ main() {
 
   print_preflight
 
+  local failed_services=()
+
   echo "Starting backend services..."
   for entry in "${SERVICES[@]}"; do
     IFS="|" read -r name port cmd <<< "$entry"
-    start_process "$name" "$port" "$name" "$cmd"
+    if ! start_process "$name" "$port" "$name" "$cmd"; then
+      failed_services+=("$name")
+    fi
     sleep 2
   done
 
   echo
   echo "Starting frontend ($FRONTEND_NAME)..."
-  start_process "$FRONTEND_NAME" "$FRONTEND_PORT" "$FRONTEND_NAME" "$FRONTEND_CMD"
+  if ! start_process "$FRONTEND_NAME" "$FRONTEND_PORT" "$FRONTEND_NAME" "$FRONTEND_CMD"; then
+    failed_services+=("$FRONTEND_NAME")
+  fi
 
   echo
   echo "All start commands issued."
   echo "Logs: $LOG_DIR"
   echo "Stop everything: ./stop-local.sh"
+  if (( ${#failed_services[@]} > 0 )); then
+    echo
+    echo "Startup warnings (check logs): ${failed_services[*]}"
+  fi
   echo
   echo "Common URLs:"
   echo "  API Gateway:      http://localhost:8080"

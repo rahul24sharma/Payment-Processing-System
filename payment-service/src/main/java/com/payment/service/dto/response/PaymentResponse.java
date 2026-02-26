@@ -74,4 +74,7 @@ public class PaymentResponse {
     
     @Schema(description = "Captured timestamp")
     private String capturedAt;
+
+    @Schema(description = "Next customer action required to complete the payment (e.g. Stripe 3DS)")
+    private PaymentNextActionResponse nextAction;
 }
