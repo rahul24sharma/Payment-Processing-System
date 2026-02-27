@@ -56,19 +56,19 @@ jobs:
           - module: payment-service
             test_cmd: mvn -B -ntp -pl payment-service -am test
           - module: fraud-service
-            test_cmd: mvn -B -ntp -pl fraud-service -am test -Dtest=FraudServiceApplicationTests
+            test_cmd: mvn -B -ntp -pl fraud-service -am test
           - module: ledger-service
-            test_cmd: mvn -B -ntp -pl ledger-service -am test -Dtest=LedgerServiceApplicationTests
+            test_cmd: mvn -B -ntp -pl ledger-service -am test
           - module: settlement-service
-            test_cmd: mvn -B -ntp -pl settlement-service -am test -Dtest=SettlementServiceApplicationTests
+            test_cmd: mvn -B -ntp -pl settlement-service -am test
           - module: notification-service
-            test_cmd: mvn -B -ntp -pl notification-service -am test -Dtest=NotificationServiceApplicationTests
+            test_cmd: mvn -B -ntp -pl notification-service -am test
           - module: merchant-service
-            test_cmd: mvn -B -ntp -pl merchant-service -am test -Dtest=MerchantServiceApplicationTests
+            test_cmd: mvn -B -ntp -pl merchant-service -am test
           - module: api-gateway
-            test_cmd: mvn -B -ntp -pl api-gateway -am test -Dtest=ApiGatewayApplicationTests
+            test_cmd: mvn -B -ntp -pl api-gateway -am test
           - module: eureka-server
-            test_cmd: mvn -B -ntp -pl eureka-server -am test -Dtest=EurekaServerApplicationTests
+            test_cmd: mvn -B -ntp -pl eureka-server -am test
     services:
       postgres:
         image: postgres:16
@@ -84,13 +84,20 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
+      MAVEN_OPTS: -Djdk.attach.allowAttachSelf=true
       POSTGRES_PASSWORD: ci_password
       TEST_POSTGRES_PASSWORD: ci_password
       SPRING_PROFILES_ACTIVE: test
+      SPRING_FLYWAY_ENABLED: "false"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
       JWT_SECRET: ci-jwt-secret-32-bytes-minimum-value-for-tests-123456
       STRIPE_SECRET_KEY: sk_test_ci_placeholder
       STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
       EUREKA_CLIENT_ENABLED: "false"
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: "false"
+      EUREKA_CLIENT_FETCH_REGISTRY: "false"
+      SPRING_CLOUD_DISCOVERY_ENABLED: "false"
+      SPRING_CLOUD_GATEWAY_DISCOVERY_LOCATOR_ENABLED: "false"
       PAYMENT_KAFKA_ENABLED: "false"
       LEDGER_KAFKA_ENABLED: "false"
       NOTIFICATION_KAFKA_ENABLED: "false"
