@@ -2,6 +2,7 @@ package com.payment.service.controller;
 
 import com.payment.service.entity.StripeWebhookEvent;
 import com.payment.service.repository.StripeWebhookEventRepository;
+import com.payment.service.security.JwtUtil;
 import com.payment.service.service.PaymentService;
 import com.payment.service.service.StripePaymentService;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,9 @@ class StripeWebhookControllerTest {
 
     @MockBean
     private StripeWebhookEventRepository stripeWebhookEventRepository;
+
+    @MockBean
+    private JwtUtil jwtUtil;
 
     @Test
     void shouldRejectWebhookWhenSignatureInvalid() throws Exception {

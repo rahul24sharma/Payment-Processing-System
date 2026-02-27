@@ -7,6 +7,7 @@ import com.payment.service.entity.Money;
 import com.payment.service.entity.Payment;
 import com.payment.service.entity.PaymentStatus;
 import com.payment.service.mapper.PaymentMapper;
+import com.payment.service.security.JwtUtil;
 import com.payment.service.service.PaymentOperationResult;
 import com.payment.service.service.PaymentService;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,9 @@ class PaymentControllerTest {
     
     @MockBean
     private PaymentMapper paymentMapper;
+
+    @MockBean
+    private JwtUtil jwtUtil;
     
     @Test
     void shouldCreatePayment() throws Exception {
