@@ -6,7 +6,6 @@ import com.payment.service.dto.response.PaymentResponse;
 import com.payment.service.entity.Money;
 import com.payment.service.entity.Payment;
 import com.payment.service.entity.PaymentStatus;
-import com.payment.service.repository.CustomerRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -14,13 +13,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class PaymentMapperTest {
     
@@ -28,18 +22,15 @@ class PaymentMapperTest {
     
     @BeforeEach
     void setUp() {
-        CustomerRepository customerRepository = mock(CustomerRepository.class);
-        when(customerRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
-        mapper = new PaymentMapper(customerRepository);
+        mapper = new PaymentMapper(null);
     }
     
     @Test
     void shouldMapEntityToResponse() {
         // Given
         Payment payment = Payment.builder()
-            .id(UUID.randomUUID())
-            .merchantId(UUID.randomUUID())
-            .customerId(UUID.randomUUID())
+            .id(java.util.UUID.randomUUID())
+            .merchantId(java.util.UUID.randomUUID())
             .amount(Money.of(new BigDecimal("100.00"), "USD"))
             .status(PaymentStatus.AUTHORIZED)
             .fraudScore(new BigDecimal("15.5"))
@@ -100,7 +91,7 @@ class PaymentMapperTest {
     void shouldMapMinimalResponse() {
         // Given
         Payment payment = Payment.builder()
-            .id(UUID.randomUUID())
+            .id(java.util.UUID.randomUUID())
             .amount(Money.of(new BigDecimal("50.00"), "EUR"))
             .status(PaymentStatus.CAPTURED)
             .createdAt(Instant.now())

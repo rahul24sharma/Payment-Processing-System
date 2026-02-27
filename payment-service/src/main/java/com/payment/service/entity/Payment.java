@@ -6,9 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
-import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -50,8 +48,7 @@ public class Payment {
     private Money amount;
     
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false, columnDefinition = "payment_status")
+    @Column(nullable = false, length = 64)
     private PaymentStatus status;
     
     @Column(name = "payment_method_id")
@@ -168,9 +165,6 @@ public class Payment {
     protected void onCreate() {
         if (createdAt == null) {
             createdAt = Instant.now();
-        }
-        if (metadata == null) {
-            metadata = new HashMap<>();
         }
     }
     

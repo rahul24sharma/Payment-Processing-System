@@ -1,9 +1,9 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/payment_db_test
-    username: rahul
-    password: ${TEST_POSTGRES_PASSWORD:}
-    driver-class-name: org.postgresql.Driver
+    url: "jdbc:h2:mem:payment_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;INIT=RUNSCRIPT FROM 'classpath:h2-init.sql'"
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
   
   jpa:
     hibernate:
@@ -11,7 +11,7 @@ spring:
     show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
   
   flyway:
