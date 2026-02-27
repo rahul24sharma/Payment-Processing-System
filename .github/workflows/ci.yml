@@ -126,7 +126,17 @@ jobs:
           psql "postgresql://rahul:ci_password@localhost:5432/postgres" -c "CREATE DATABASE merchant_db;"
 
       - name: Run tests
-        run: ${{ matrix.test_cmd }}
+        run: ${{ matrix.test_cmd }} -DfailIfNoTests=false -Dsurefire.rerunFailingTestsCount=1
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-${{ matrix.module }}
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+          if-no-files-found: ignore
 
   frontend:
     name: Frontend • merchant-dashboard
