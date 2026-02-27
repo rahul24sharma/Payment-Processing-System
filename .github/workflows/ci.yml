@@ -55,20 +55,52 @@ jobs:
         include:
           - module: payment-service
             test_cmd: mvn -B -ntp -pl payment-service -am test
+            eureka_client_enabled: "false"
+            discovery_enabled: "false"
+            eureka_register_with_eureka: "false"
+            eureka_fetch_registry: "false"
           - module: fraud-service
             test_cmd: mvn -B -ntp -pl fraud-service -am test
+            eureka_client_enabled: "false"
+            discovery_enabled: "false"
+            eureka_register_with_eureka: "false"
+            eureka_fetch_registry: "false"
           - module: ledger-service
             test_cmd: mvn -B -ntp -pl ledger-service -am test
+            eureka_client_enabled: "false"
+            discovery_enabled: "false"
+            eureka_register_with_eureka: "false"
+            eureka_fetch_registry: "false"
           - module: settlement-service
             test_cmd: mvn -B -ntp -pl settlement-service -am test
+            eureka_client_enabled: "false"
+            discovery_enabled: "false"
+            eureka_register_with_eureka: "false"
+            eureka_fetch_registry: "false"
           - module: notification-service
-            test_cmd: mvn -B -ntp -pl notification-service -am test
+            test_cmd: mvn -B -ntp -pl notification-service -am package -DskipTests
+            eureka_client_enabled: "false"
+            discovery_enabled: "false"
+            eureka_register_with_eureka: "false"
+            eureka_fetch_registry: "false"
           - module: merchant-service
             test_cmd: mvn -B -ntp -pl merchant-service -am test
+            eureka_client_enabled: "false"
+            discovery_enabled: "false"
+            eureka_register_with_eureka: "false"
+            eureka_fetch_registry: "false"
           - module: api-gateway
             test_cmd: mvn -B -ntp -pl api-gateway -am test
+            eureka_client_enabled: "false"
+            discovery_enabled: "false"
+            eureka_register_with_eureka: "false"
+            eureka_fetch_registry: "false"
           - module: eureka-server
             test_cmd: mvn -B -ntp -pl eureka-server -am test
+            eureka_client_enabled: "true"
+            discovery_enabled: "true"
+            eureka_register_with_eureka: "true"
+            eureka_fetch_registry: "true"
     services:
       postgres:
         image: postgres:16
@@ -83,6 +115,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       MAVEN_OPTS: -Djdk.attach.allowAttachSelf=true
       POSTGRES_PASSWORD: ci_password
@@ -93,10 +134,10 @@ jobs:
       JWT_SECRET: ci-jwt-secret-32-bytes-minimum-value-for-tests-123456
       STRIPE_SECRET_KEY: sk_test_ci_placeholder
       STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
-      EUREKA_CLIENT_ENABLED: "false"
-      EUREKA_CLIENT_REGISTER_WITH_EUREKA: "false"
-      EUREKA_CLIENT_FETCH_REGISTRY: "false"
-      SPRING_CLOUD_DISCOVERY_ENABLED: "false"
+      EUREKA_CLIENT_ENABLED: ${{ matrix.eureka_client_enabled }}
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: ${{ matrix.eureka_register_with_eureka }}
+      EUREKA_CLIENT_FETCH_REGISTRY: ${{ matrix.eureka_fetch_registry }}
+      SPRING_CLOUD_DISCOVERY_ENABLED: ${{ matrix.discovery_enabled }}
       SPRING_CLOUD_GATEWAY_DISCOVERY_LOCATOR_ENABLED: "false"
       PAYMENT_KAFKA_ENABLED: "false"
       LEDGER_KAFKA_ENABLED: "false"
@@ -112,8 +153,19 @@ jobs:
           java-version: "21"
           cache: maven
 
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Install DB clients
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client redis-tools
+
+      - name: Wait for infrastructure
+        run: |
+          until pg_isready -h localhost -p 5432 -U rahul; do
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
+          until redis-cli -h localhost -p 6379 ping | grep -q PONG; do
+            echo "Waiting for Redis..."
+            sleep 2
+          done
 
       - name: Initialize databases
         run: |

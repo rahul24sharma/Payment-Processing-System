@@ -61,9 +61,9 @@ class PaymentServiceTest {
     @BeforeEach
     void setUp() {
         // Default mock behaviors
-        when(idempotencyService.findByKey(anyString())).thenReturn(Optional.empty());
-        when(fraudServiceClient.assessRisk(any())).thenReturn(BigDecimal.valueOf(15)); // Low risk
-        when(stripePaymentService.authorize(any())).thenReturn("pi_mock_123");
+        lenient().when(idempotencyService.findByKey(anyString())).thenReturn(Optional.empty());
+        lenient().when(fraudServiceClient.assessRisk(any())).thenReturn(BigDecimal.valueOf(15)); // Low risk
+        lenient().when(stripePaymentService.authorize(any())).thenReturn("pi_mock_123");
     }
     
     @Test
