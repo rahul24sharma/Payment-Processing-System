@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend • ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - payment-service
+          - fraud-service
+          - ledger-service
+          - settlement-service
+          - notification-service
+          - merchant-service
+          - api-gateway
+          - eureka-server
+    env:
+      SPRING_PROFILES_ACTIVE: test
+      JWT_SECRET: ci-jwt-secret-32-bytes-minimum-value-for-tests-123456
+      STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build and test module
+        run: mvn -B -ntp -pl ${{ matrix.module }} -am clean verify
+
+  frontend:
+    name: Frontend • merchant-dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: merchant-dashboard
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: merchant-dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
