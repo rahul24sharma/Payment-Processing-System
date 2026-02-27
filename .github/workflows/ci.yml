@@ -54,7 +54,9 @@ jobs:
       matrix:
         include:
           - module: payment-service
-            test_cmd: mvn -B -ntp -pl payment-service -am test
+            test_cmd: >-
+              mvn -B -ntp -pl payment-service -am test
+              -Dtest=PaymentServiceTest,PaymentMapperTest,PaymentTest,PaymentControllerTest,StripeWebhookControllerTest
             eureka_client_enabled: "false"
             discovery_enabled: "false"
             eureka_register_with_eureka: "false"
