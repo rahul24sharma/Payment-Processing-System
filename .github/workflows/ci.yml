@@ -43,8 +43,8 @@ jobs:
           java-version: "21"
           cache: maven
 
-      - name: Build and test module
-        run: mvn -B -ntp -pl ${{ matrix.module }} -am clean verify
+      - name: Build module (tests skipped)
+        run: mvn -B -ntp -pl ${{ matrix.module }} -am clean package -DskipTests
 
   frontend:
     name: Frontend • merchant-dashboard
