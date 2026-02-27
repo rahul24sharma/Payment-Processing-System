@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
@@ -34,7 +35,7 @@ public class WebhookEndpointService {
             .merchantId(merchantId)
             .url(url)
             .secret(secret)
-            .events(events)
+            .events(events == null ? List.of("*") : Arrays.asList(events))
             .isActive(true)
             .build();
         

@@ -174,9 +174,20 @@ Bank account values are now encrypted at the application layer, but key manageme
 5. Logging controls
    - Never log raw bank account or routing values
 
-## Suggested Follow-up Tickets
+## Implemented vs Remaining
 
-1. `merchant-service`: encrypt bank account fields before saving to `settings`
-2. `merchant-service`: add payout account change audit records
-3. `merchant-dashboard`: show explicit "last updated" and "verified" state for payout account
-4. docs: add `.env.example` templates for all services with required secret names
+### Implemented in this repo
+
+1. Env-backed secret configuration across services (no required plaintext secrets in YAML defaults)
+2. Stripe webhook secret rotation runbook
+3. Bank account field encryption + masking
+4. Encryption key versioning support and active key selection
+5. Admin-safe re-encryption endpoint for migration
+
+### Remaining for production-grade posture
+
+1. Managed KMS/HSM integration for encryption keys (instead of env-managed key custody)
+2. End-to-end audit trails for payout changes and other sensitive admin actions
+3. Formal RBAC verification matrix across all admin endpoints
+4. Secret rotation automation checks in CI/CD and runtime health checks
+5. Compliance evidence package (SOC2/PCI controls, operational evidence, periodic reviews)

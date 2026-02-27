@@ -14,16 +14,14 @@ public interface WebhookEndpointRepository extends JpaRepository<WebhookEndpoint
     
     List<WebhookEndpoint> findByMerchantIdAndIsActiveTrue(UUID merchantId);
     
-    @Query(
-        value = """
-            SELECT *
-            FROM webhook_endpoints w
-            WHERE w.merchant_id = :merchantId
-              AND w.is_active = true
-              AND (:eventType = ANY(w.events) OR '*' = ANY(w.events))
-            """,
-        nativeQuery = true
-    )
+    @Query("""
+        SELECT DISTINCT w
+        FROM WebhookEndpoint w
+        JOIN w.events e
+        WHERE w.merchantId = :merchantId
+          AND w.isActive = true
+          AND (e = :eventType OR e = '*')
+        """)
     List<WebhookEndpoint> findByMerchantIdAndEventType(
         @Param("merchantId") UUID merchantId,
         @Param("eventType") String eventType

@@ -1,8 +1,8 @@
 package com.payment.notification.service;
 
 import com.payment.notification.entity.Webhook;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class NotificationDlqPublisher {
 
@@ -19,7 +18,16 @@ public class NotificationDlqPublisher {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
+    public NotificationDlqPublisher(@Autowired(required = false) KafkaTemplate<String, Object> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
     public void publishWebhookFailure(Webhook webhook, String reason) {
+        if (kafkaTemplate == null) {
+            log.warn("KafkaTemplate not available; skipping DLQ publish for webhookId={}", webhook.getId());
+            return;
+        }
+
         Map<String, Object> payload = new HashMap<>();
         payload.put("sourceService", "notification-service");
         payload.put("type", "webhook.delivery.failed");

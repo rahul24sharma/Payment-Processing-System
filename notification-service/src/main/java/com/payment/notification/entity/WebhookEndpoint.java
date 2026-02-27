@@ -1,14 +1,26 @@
 package com.payment.notification.entity;
 
-import io.hypersistence.utils.hibernate.type.array.StringArrayType;
-import jakarta.persistence.*;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.Type;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -39,9 +51,13 @@ public class WebhookEndpoint {
     @Column(nullable = false)
     private String secret; // For HMAC signing
     
-    @Type(StringArrayType.class)
-    @Column(name = "events", nullable = false, columnDefinition = "text[]")
-    private String[] events; // Array of event types to subscribe to
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+        name = "webhook_endpoint_events",
+        joinColumns = @JoinColumn(name = "endpoint_id")
+    )
+    @Column(name = "event_type", nullable = false)
+    private List<String> events; // Event types to subscribe to
     
     @Column(name = "is_active")
     @Builder.Default
@@ -66,16 +82,10 @@ public class WebhookEndpoint {
     }
     
     public boolean subscribesTo(String eventType) {
-        if (events == null || events.length == 0) {
+        if (events == null || events.isEmpty()) {
             return false;
         }
-        
-        for (String event : events) {
-            if (event.equals(eventType) || event.equals("*")) {
-                return true;
-            }
-        }
-        
-        return false;
+
+        return events.stream().anyMatch(event -> event.equals(eventType) || event.equals("*"));
     }
 }
