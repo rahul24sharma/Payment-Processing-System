@@ -17,6 +17,7 @@ export interface AuthResponse {
   merchantId: string
   businessName: string
   email: string
+  role: string
   apiKey?: string
 }
 
@@ -35,6 +36,7 @@ export const authApi = {
     localStorage.removeItem('api_token')
     localStorage.removeItem('merchant_id')
     localStorage.removeItem('merchant_email')
+    localStorage.removeItem('merchant_role')
   },
 
   isAuthenticated: (): boolean => {

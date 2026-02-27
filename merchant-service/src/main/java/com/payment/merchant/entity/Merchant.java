@@ -50,6 +50,9 @@ public class Merchant {
     @Column(name = "risk_profile")
     @ColumnTransformer(write = "?::risk_profile")
     private String riskProfile; // LOW, MEDIUM, HIGH
+
+    @Column(name = "role", nullable = false)
+    private String role; // ADMIN, SUPPORT, DEVELOPER, VIEWER
     
     @Type(JsonBinaryType.class)
     @Column(name = "settings", columnDefinition = "jsonb")
@@ -71,6 +74,9 @@ public class Merchant {
         }
         if (riskProfile == null) {
             riskProfile = "MEDIUM";
+        }
+        if (role == null) {
+            role = "ADMIN";
         }
     }
     

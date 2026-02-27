@@ -12,7 +12,7 @@ interface RefundWithPaymentInfo {
 }
 
 export default function RefundsList() {
-  const { data, isLoading, error } = usePayments()
+  const { data, isLoading, isFetching, error, refetch } = usePayments()
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [search, setSearch] = useState('')
 
@@ -96,8 +96,16 @@ export default function RefundsList() {
             <p className="refunds-list__eyebrow">Filters</p>
             <h2>Refund records</h2>
           </div>
-          <div className="refunds-list__toolbar-meta">
-            {filteredRefunds.length} shown
+          <div className="refunds-list__toolbar-right">
+            <div className="refunds-list__toolbar-meta">
+              {filteredRefunds.length} shown
+            </div>
+            <span className="refunds-list__sync-state" role="status" aria-live="polite">
+              {isFetching ? 'Refreshing...' : 'Auto-refresh on'}
+            </span>
+            <button type="button" className="refunds-list__refresh-btn" onClick={() => void refetch()}>
+              Refresh
+            </button>
           </div>
         </div>
 

@@ -46,6 +46,11 @@ spring:
 payment:
   kafka:
     enabled: ${PAYMENT_KAFKA_ENABLED:false}
+  outbox:
+    dispatch:
+      fixed-delay-ms: ${PAYMENT_OUTBOX_DISPATCH_FIXED_DELAY_MS:2000}
+      batch-size: ${PAYMENT_OUTBOX_DISPATCH_BATCH_SIZE:50}
+      max-attempts: ${PAYMENT_OUTBOX_DISPATCH_MAX_ATTEMPTS:10}
 
 # Server Port
 server:

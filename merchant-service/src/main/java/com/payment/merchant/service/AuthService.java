@@ -51,12 +51,13 @@ public class AuthService {
             .apiKeyPrefix("sk_test_")
             .status("ACTIVE")
             .riskProfile("MEDIUM")
+            .role("ADMIN")
             .build();
         
         merchant = merchantRepository.save(merchant);
         
         // Generate JWT token
-        String token = jwtUtil.generateToken(merchant.getId(), merchant.getEmail());
+        String token = jwtUtil.generateToken(merchant.getId(), merchant.getEmail(), merchant.getRole());
         
         log.info("Merchant registered successfully: id={}", merchant.getId());
         
@@ -66,6 +67,7 @@ public class AuthService {
             .merchantId(merchant.getId().toString())
             .businessName(merchant.getBusinessName())
             .email(merchant.getEmail())
+            .role(merchant.getRole())
             .apiKey("sk_test_" + apiKey) // Return once during registration
             .build();
     }
@@ -90,7 +92,7 @@ public class AuthService {
         }
         
         // Generate JWT token
-        String token = jwtUtil.generateToken(merchant.getId(), merchant.getEmail());
+        String token = jwtUtil.generateToken(merchant.getId(), merchant.getEmail(), merchant.getRole());
         
         log.info("Merchant logged in successfully: id={}", merchant.getId());
         
@@ -100,6 +102,7 @@ public class AuthService {
             .merchantId(merchant.getId().toString())
             .businessName(merchant.getBusinessName())
             .email(merchant.getEmail())
+            .role(merchant.getRole())
             .build();
     }
     

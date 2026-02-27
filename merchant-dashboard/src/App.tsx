@@ -31,11 +31,15 @@ const queryClient = new QueryClient({
 })
 
 function AppContent() {
-  const { isAuthenticated, email, logout } = useAuth()
+  const { isAuthenticated, email, role, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const profileMenuRef = useRef<HTMLDivElement | null>(null)
   const mlMonitoringEnabled = import.meta.env.VITE_ENABLE_ML_MONITORING === 'true'
+  const roleUpper = role?.toUpperCase()
+  const canManageDeveloperResources = roleUpper === 'ADMIN' || roleUpper === 'DEVELOPER'
+  const canManageSettings = roleUpper === 'ADMIN'
+  const canAccessTickets = roleUpper === 'ADMIN' || roleUpper === 'SUPPORT' || roleUpper === 'DEVELOPER'
 
   const topNavItems = [
     { to: '/dashboard', label: 'Dashboard' },
@@ -45,15 +49,11 @@ function AppContent() {
   ]
 
   const sidebarNavItems = [
-    { to: '/dashboard', label: 'Dashboard' },
-    { to: '/create-payment', label: 'Create Payment' },
-    { to: '/payments', label: 'All Payments' },
-    { to: '/refunds', label: 'Refunds' },
     { to: '/customers', label: 'Customers' },
-    { to: '/tickets', label: 'Tickets' },
+    ...(canAccessTickets ? [{ to: '/tickets', label: 'Tickets' }] : []),
     { to: '/analytics', label: 'Analytics' },
-    { to: '/webhooks', label: 'Webhooks' },
-    { to: '/api-keys', label: 'API Keys' },
+    ...(canManageDeveloperResources ? [{ to: '/webhooks', label: 'Webhooks' }] : []),
+    ...(canManageDeveloperResources ? [{ to: '/api-keys', label: 'API Keys' }] : []),
     ...(mlMonitoringEnabled ? [{ to: '/ml-monitoring', label: 'ML Monitoring' }] : []),
   ]
 
@@ -141,22 +141,26 @@ function AppContent() {
                     </div>
 
                     <div className="profile-menu__items">
-                      <Link
-                        to="/settings"
-                        className="profile-menu__item"
-                        role="menuitem"
-                        onClick={() => setProfileMenuOpen(false)}
-                      >
-                        Settings
-                      </Link>
-                      <Link
-                        to="/api-keys"
-                        className="profile-menu__item"
-                        role="menuitem"
-                        onClick={() => setProfileMenuOpen(false)}
-                      >
-                        API Keys
-                      </Link>
+                      {canManageSettings && (
+                        <Link
+                          to="/settings"
+                          className="profile-menu__item"
+                          role="menuitem"
+                          onClick={() => setProfileMenuOpen(false)}
+                        >
+                          Settings
+                        </Link>
+                      )}
+                      {canManageDeveloperResources && (
+                        <Link
+                          to="/api-keys"
+                          className="profile-menu__item"
+                          role="menuitem"
+                          onClick={() => setProfileMenuOpen(false)}
+                        >
+                          API Keys
+                        </Link>
+                      )}
                       <button
                         type="button"
                         className="profile-menu__item profile-menu__item--danger"
@@ -256,7 +260,7 @@ function AppContent() {
           <Route
             path="/webhooks"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRoles={['ADMIN', 'DEVELOPER']}>
                 <WebhooksPage />
               </ProtectedRoute>
             }
@@ -264,7 +268,7 @@ function AppContent() {
           <Route
             path="/api-keys"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRoles={['ADMIN', 'DEVELOPER']}>
                 <ApiKeysPage />
               </ProtectedRoute>
             }
@@ -272,7 +276,7 @@ function AppContent() {
           <Route
             path="/tickets"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRoles={['ADMIN', 'SUPPORT', 'DEVELOPER']}>
                 <TicketsPage />
               </ProtectedRoute>
             }
@@ -295,14 +299,14 @@ function AppContent() {
               }
             />
           )}
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <SettingsPage />
-                </ProtectedRoute>
-              }
-            />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute requiredRoles={['ADMIN']}>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
             <Route
               path="/customers"
               element={

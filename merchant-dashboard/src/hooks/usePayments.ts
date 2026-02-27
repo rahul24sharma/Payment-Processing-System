@@ -17,6 +17,19 @@ export function usePayments(status?: string) {
     queryKey: ['payments', status],
     queryFn: () => paymentsApi.list({ status }),
     refetchOnMount: 'always',
+    refetchInterval: (query) => {
+      const rows = (query.state.data as any)?.data
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return 15000
+      }
+      const hasTransitionalPayment = rows.some((payment: any) =>
+        payment?.status === 'pending' ||
+        payment?.status === 'authorized' ||
+        payment?.status === 'partially_refunded'
+      )
+      return hasTransitionalPayment ? 4000 : 15000
+    },
+    refetchIntervalInBackground: true,
   })
 }
 

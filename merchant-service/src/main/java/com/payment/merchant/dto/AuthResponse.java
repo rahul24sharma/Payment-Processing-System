@@ -16,5 +16,6 @@ public class AuthResponse {
     private String merchantId;
     private String businessName;
     private String email;
+    private String role;
     private String apiKey;
 }

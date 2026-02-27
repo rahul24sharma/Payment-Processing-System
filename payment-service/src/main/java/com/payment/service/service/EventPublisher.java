@@ -1,31 +1,34 @@
 package com.payment.service.service;
 
 import com.payment.service.entity.Payment;
+import com.payment.service.entity.OutboxMessage;
+import com.payment.service.entity.OutboxMessageStatus;
 import com.payment.service.event.PaymentEvent;
+import com.payment.service.repository.OutboxMessageRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class EventPublisher {
-    
-    private final ObjectProvider<KafkaTemplate<String, Object>> kafkaTemplateProvider;
-    @Value("${payment.kafka.enabled:false}")
-    private boolean kafkaEnabled;
+
+    private static final String PAYMENT_EVENTS_TOPIC = "payment-events";
+
+    private final OutboxMessageRepository outboxMessageRepository;
+    private final ObjectMapper objectMapper;
     
     /**
      * Publish payment event to Kafka
      */
+    @Transactional
     public void publishPaymentEvent(String eventType, Payment payment, String previousStatus) {
         PaymentEvent event = PaymentEvent.builder()
             .eventId(UUID.randomUUID().toString())
@@ -41,45 +44,32 @@ public class EventPublisher {
             .metadata(payment.getMetadata())
             .timestamp(Instant.now())
             .build();
-        
-        String topic = "payment-events";
-        String key = payment.getId().toString();
 
-        if (!kafkaEnabled) {
-            log.warn("Kafka publishing disabled; skipping event publish: type={}, paymentId={}",
-                eventType, payment.getId());
-            return;
-        }
+        String payloadJson = toJson(event);
 
-        KafkaTemplate<String, Object> kafkaTemplate = kafkaTemplateProvider.getIfAvailable();
+        OutboxMessage message = OutboxMessage.builder()
+            .id(UUID.randomUUID())
+            .aggregateType("PAYMENT")
+            .aggregateId(payment.getId())
+            .eventType(eventType)
+            .topic(PAYMENT_EVENTS_TOPIC)
+            .messageKey(payment.getId().toString())
+            .payloadJson(payloadJson)
+            .status(OutboxMessageStatus.PENDING)
+            .attemptCount(0)
+            .availableAt(Instant.now())
+            .build();
 
-        if (kafkaTemplate == null) {
-            log.warn("Kafka is disabled/unavailable; skipping event publish: type={}, paymentId={}",
-                eventType, payment.getId());
-            return;
-        }
+        outboxMessageRepository.save(message);
+        log.info("Queued outbox event: type={}, paymentId={}, outboxId={}",
+            eventType, payment.getId(), message.getId());
+    }
 
+    private String toJson(PaymentEvent event) {
         try {
-            CompletableFuture<SendResult<String, Object>> future =
-                kafkaTemplate.send(topic, key, event);
-
-            future.whenComplete((result, ex) -> {
-                if (ex == null) {
-                    log.info("Published event: type={}, paymentId={}, partition={}, offset={}",
-                        eventType,
-                        payment.getId(),
-                        result.getRecordMetadata().partition(),
-                        result.getRecordMetadata().offset());
-                } else {
-                    log.error("Failed to publish event asynchronously: type={}, paymentId={}",
-                        eventType, payment.getId(), ex);
-                }
-            });
-        } catch (Exception ex) {
-            // Local/dev environments may not have Kafka or topics provisioned.
-            // Publishing is best-effort and must not fail payment API requests.
-            log.error("Failed to publish event synchronously: type={}, paymentId={}",
-                eventType, payment.getId(), ex);
+            return objectMapper.writeValueAsString(event);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize payment event for outbox", e);
         }
     }
 }

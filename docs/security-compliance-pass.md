@@ -21,6 +21,7 @@ Hardcoded secrets/defaults were removed from local Spring configs and replaced w
 - `MERCHANT_BANK_ACCOUNT_ENCRYPTION_KEY` (base64-encoded 32-byte key, merchant payout data encryption)
 - `MERCHANT_BANK_ACCOUNT_ENCRYPTION_KEYS` (optional keyring for rotation, `keyId:base64Key,...`)
 - `MERCHANT_BANK_ACCOUNT_ENCRYPTION_ACTIVE_KEY_ID` (active key id for new encryptions)
+- `MERCHANT_ADMIN_MAINTENANCE_TOKEN` (required to run maintenance re-encryption endpoint)
 
 Updated files:
 
@@ -102,6 +103,31 @@ This allows encrypting with an active key while still decrypting older values us
    - Run a migration or controlled re-save process for existing bank account values
 
 7. Remove the old key only after all old records are re-encrypted
+
+### Admin-safe re-encryption endpoint
+
+`merchant-service` now exposes a maintenance endpoint for batch migration:
+
+- `POST /api/v1/admin/maintenance/reencrypt-bank-accounts`
+- Header: `X-Admin-Maintenance-Token: <MERCHANT_ADMIN_MAINTENANCE_TOKEN>`
+
+Query params:
+
+- `dryRun` (default `true`)
+- `maxMerchants` (default `500`)
+- `pageSize` (default `100`)
+
+Examples:
+
+```bash
+# Preview impacted records
+curl -X POST "http://localhost:8086/api/v1/admin/maintenance/reencrypt-bank-accounts?dryRun=true&maxMerchants=200" \
+  -H "X-Admin-Maintenance-Token: $MERCHANT_ADMIN_MAINTENANCE_TOKEN"
+
+# Execute migration
+curl -X POST "http://localhost:8086/api/v1/admin/maintenance/reencrypt-bank-accounts?dryRun=false&maxMerchants=200" \
+  -H "X-Admin-Maintenance-Token: $MERCHANT_ADMIN_MAINTENANCE_TOKEN"
+```
 
 ### Backward compatibility
 

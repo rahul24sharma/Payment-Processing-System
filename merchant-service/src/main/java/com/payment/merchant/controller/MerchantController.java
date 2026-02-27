@@ -8,9 +8,13 @@ import com.payment.merchant.dto.UpdateProfileRequest;
 import com.payment.merchant.entity.Merchant;
 import com.payment.merchant.repository.MerchantRepository;
 import com.payment.merchant.security.BankAccountCryptoService;
+import com.payment.merchant.security.MerchantRole;
+import com.payment.merchant.security.RoleAccessService;
+import com.payment.merchant.service.AuditLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +37,8 @@ public class MerchantController {
     private final MerchantRepository merchantRepository;
     private final PasswordEncoder passwordEncoder;
     private final BankAccountCryptoService bankAccountCryptoService;
+    private final RoleAccessService roleAccessService;
+    private final AuditLogService auditLogService;
     
     @Operation(summary = "Get current merchant profile")
     @GetMapping("/me")
@@ -57,7 +63,9 @@ public class MerchantController {
     @PutMapping("/me")
     public ResponseEntity<MerchantResponse> updateProfile(
             @Valid @RequestBody UpdateProfileRequest request,
-            @RequestHeader(value = "X-Merchant-ID", required = false) String merchantIdHeader) {
+            @RequestHeader(value = "X-Merchant-ID", required = false) String merchantIdHeader,
+            HttpServletRequest httpRequest) {
+        roleAccessService.requireAny(MerchantRole.ADMIN);
         
         UUID merchantId = merchantIdHeader != null 
             ? UUID.fromString(merchantIdHeader) 
@@ -91,6 +99,11 @@ public class MerchantController {
         merchant = merchantRepository.save(merchant);
         
         log.info("Merchant profile updated: id={}", merchantId);
+        auditLogService.log(
+            merchantId, "MERCHANT_USER", merchantId.toString(), roleAccessService.currentRole().name(),
+            "MERCHANT_PROFILE_UPDATED", "MERCHANT", merchantId.toString(), "SUCCESS",
+            Map.of("updatedFields", summarizeProfileFields(request)), httpRequest
+        );
         
         return ResponseEntity.ok(buildMerchantResponse(merchant));
     }
@@ -99,7 +112,9 @@ public class MerchantController {
     @PostMapping("/me/password")
     public ResponseEntity<Map<String, String>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,
-            @RequestHeader(value = "X-Merchant-ID", required = false) String merchantIdHeader) {
+            @RequestHeader(value = "X-Merchant-ID", required = false) String merchantIdHeader,
+            HttpServletRequest httpRequest) {
+        roleAccessService.requireAny(MerchantRole.ADMIN);
         
         UUID merchantId = merchantIdHeader != null 
             ? UUID.fromString(merchantIdHeader) 
@@ -114,12 +129,22 @@ public class MerchantController {
         
         // Verify current password
         if (!passwordEncoder.matches(request.getCurrentPassword(), merchant.getPasswordHash())) {
+            auditLogService.log(
+                merchantId, "MERCHANT_USER", merchantId.toString(), roleAccessService.currentRole().name(),
+                "MERCHANT_PASSWORD_CHANGED", "MERCHANT", merchantId.toString(), "FAILED",
+                Map.of("reason", "invalid_current_password"), httpRequest
+            );
             return ResponseEntity.status(400)
                 .body(java.util.Map.of("error", "Current password is incorrect"));
         }
         
         // Verify new passwords match
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            auditLogService.log(
+                merchantId, "MERCHANT_USER", merchantId.toString(), roleAccessService.currentRole().name(),
+                "MERCHANT_PASSWORD_CHANGED", "MERCHANT", merchantId.toString(), "FAILED",
+                Map.of("reason", "password_mismatch"), httpRequest
+            );
             return ResponseEntity.status(400)
                 .body(java.util.Map.of("error", "New passwords do not match"));
         }
@@ -129,6 +154,11 @@ public class MerchantController {
         merchantRepository.save(merchant);
         
         log.info("Password changed for merchant: id={}", merchantId);
+        auditLogService.log(
+            merchantId, "MERCHANT_USER", merchantId.toString(), roleAccessService.currentRole().name(),
+            "MERCHANT_PASSWORD_CHANGED", "MERCHANT", merchantId.toString(), "SUCCESS",
+            null, httpRequest
+        );
         
         return ResponseEntity.ok(java.util.Map.of("message", "Password changed successfully"));
     }
@@ -137,7 +167,9 @@ public class MerchantController {
     @PutMapping("/me/bank-account")
     public ResponseEntity<Map<String, String>> updateBankAccount(
             @Valid @RequestBody UpdateBankAccountRequest request,
-            @RequestHeader(value = "X-Merchant-ID", required = false) String merchantIdHeader) {
+            @RequestHeader(value = "X-Merchant-ID", required = false) String merchantIdHeader,
+            HttpServletRequest httpRequest) {
+        roleAccessService.requireAny(MerchantRole.ADMIN);
 
         UUID merchantId = merchantIdHeader != null ? UUID.fromString(merchantIdHeader) : null;
         if (merchantId == null) {
@@ -166,6 +198,16 @@ public class MerchantController {
 
         merchantRepository.save(merchant);
         log.info("Bank account settings updated: merchantId={}", merchantId);
+        auditLogService.log(
+            merchantId, "MERCHANT_USER", merchantId.toString(), roleAccessService.currentRole().name(),
+            "MERCHANT_BANK_ACCOUNT_UPDATED", "MERCHANT", merchantId.toString(), "SUCCESS",
+            Map.of(
+                "accountType", request.getAccountType().toLowerCase(),
+                "accountNumberLast4", last4(request.getAccountNumber()),
+                "routingNumberLast4", last4(request.getRoutingNumber())
+            ),
+            httpRequest
+        );
         return ResponseEntity.ok(Map.of("message", "Bank account updated"));
     }
 
@@ -173,7 +215,9 @@ public class MerchantController {
     @PutMapping("/me/notifications")
     public ResponseEntity<Map<String, String>> updateNotifications(
             @Valid @RequestBody UpdateNotificationPreferencesRequest request,
-            @RequestHeader(value = "X-Merchant-ID", required = false) String merchantIdHeader) {
+            @RequestHeader(value = "X-Merchant-ID", required = false) String merchantIdHeader,
+            HttpServletRequest httpRequest) {
+        roleAccessService.requireAny(MerchantRole.ADMIN);
 
         UUID merchantId = merchantIdHeader != null ? UUID.fromString(merchantIdHeader) : null;
         if (merchantId == null) {
@@ -193,13 +237,26 @@ public class MerchantController {
 
         merchantRepository.save(merchant);
         log.info("Notification settings updated: merchantId={}", merchantId);
+        auditLogService.log(
+            merchantId, "MERCHANT_USER", merchantId.toString(), roleAccessService.currentRole().name(),
+            "MERCHANT_NOTIFICATIONS_UPDATED", "MERCHANT", merchantId.toString(), "SUCCESS",
+            Map.of(
+                "emailOnPayment", request.isEmailOnPayment(),
+                "emailOnRefund", request.isEmailOnRefund(),
+                "emailOnPayout", request.isEmailOnPayout(),
+                "emailOnFraud", request.isEmailOnFraud()
+            ),
+            httpRequest
+        );
         return ResponseEntity.ok(Map.of("message", "Notification preferences updated"));
     }
     
     @Operation(summary = "Delete merchant account")
     @DeleteMapping("/me")
     public ResponseEntity<Void> deleteAccount(
-            @RequestHeader(value = "X-Merchant-ID", required = false) String merchantIdHeader) {
+            @RequestHeader(value = "X-Merchant-ID", required = false) String merchantIdHeader,
+            HttpServletRequest httpRequest) {
+        roleAccessService.requireAny(MerchantRole.ADMIN);
         
         UUID merchantId = merchantIdHeader != null 
             ? UUID.fromString(merchantIdHeader) 
@@ -217,6 +274,12 @@ public class MerchantController {
         merchantRepository.save(merchant);
         
         log.warn("Merchant account deleted: id={}", merchantId);
+        auditLogService.log(
+            merchantId, "MERCHANT_USER", merchantId.toString(), roleAccessService.currentRole().name(),
+            "MERCHANT_ACCOUNT_DELETED", "MERCHANT", merchantId.toString(), "SUCCESS",
+            Map.of("mode", "soft_delete", "newStatus", "CLOSED"),
+            httpRequest
+        );
         
         return ResponseEntity.noContent().build();
     }
@@ -239,6 +302,7 @@ public class MerchantController {
             .notifications(getSettingsMap(merchant, "notifications"))
             .status(merchant.getStatus())
             .riskProfile(merchant.getRiskProfile())
+            .role(merchant.getRole())
             .settings(sanitizeSettings(merchant.getSettings(), maskedBankAccount))
             .createdAt(merchant.getCreatedAt())
             .build();
@@ -330,5 +394,13 @@ public class MerchantController {
         }
         int maskedLength = value.length() - visibleSuffix;
         return "•".repeat(maskedLength) + value.substring(maskedLength);
+    }
+
+    private java.util.List<String> summarizeProfileFields(UpdateProfileRequest request) {
+        java.util.List<String> fields = new java.util.ArrayList<>();
+        if (request.getBusinessName() != null) fields.add("businessName");
+        if (request.getPhone() != null) fields.add("phone");
+        if (request.getWebsite() != null) fields.add("website");
+        return fields;
     }
 }

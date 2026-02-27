@@ -34,9 +34,12 @@ spring:
     schemas: public
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
     admin:
       fail-fast: false
+      auto-create: false
+    listener:
+      missing-topics-fatal: false
 
 server:
   port: 8085
@@ -68,6 +71,9 @@ logging:
     org.hibernate.SQL: DEBUG
 
 notification:
+  kafka:
+    topics:
+      auto-create: ${NOTIFICATION_KAFKA_TOPICS_AUTO_CREATE:false}
   email:
     enabled: ${NOTIFICATION_EMAIL_ENABLED:false}
     provider: ${NOTIFICATION_EMAIL_PROVIDER:smtp}

@@ -1,6 +1,7 @@
 package com.payment.ledger.event;
 
 import com.payment.ledger.service.LedgerService;
+import com.payment.ledger.service.ConsumerIdempotencyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class PaymentEventHandler {
     
     private final LedgerService ledgerService;
+    private final ConsumerIdempotencyService consumerIdempotencyService;
     
     /**
      * Listen to payment events from Kafka
@@ -36,6 +38,12 @@ public class PaymentEventHandler {
         
         log.info("Received payment event: type={}, paymentId={}, partition={}, offset={}", 
             eventType, paymentId, partition, offset);
+
+        if (!consumerIdempotencyService.tryAcquire("payment-events", event, partition, offset)) {
+            log.info("Skipping duplicate payment event delivery: type={}, paymentId={}, partition={}, offset={}",
+                eventType, paymentId, partition, offset);
+            return;
+        }
         
         try {
             switch (eventType) {

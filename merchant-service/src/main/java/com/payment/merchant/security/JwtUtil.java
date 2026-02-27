@@ -26,10 +26,11 @@ public class JwtUtil {
     /**
      * Generate JWT token
      */
-    public String generateToken(UUID merchantId, String email) {
+    public String generateToken(UUID merchantId, String email, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("merchantId", merchantId.toString());
         claims.put("email", email);
+        claims.put("role", role);
         
         return Jwts.builder()
             .claims(claims)
@@ -54,6 +55,10 @@ public class JwtUtil {
      */
     public String extractEmail(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
     }
     
     /**

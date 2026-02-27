@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAddTicketComment, useCreateTicket, useTicket, useTickets, useUpdateTicketStatus } from '@/hooks/useTickets'
 import { useToast } from '@/contexts/ToastContext'
+import AsyncState from '@/components/ui/AsyncState'
 import type { Ticket } from '@/types/ticket'
 import './TicketsPage.css'
 
@@ -26,8 +27,8 @@ export default function TicketsPage() {
   const ticketDialogPanelRef = useRef<HTMLDivElement | null>(null)
 
   const toast = useToast()
-  const { data: tickets = [], isLoading, error } = useTickets(statusFilter === 'ALL' ? undefined : statusFilter)
-  const { data: selectedTicket } = useTicket(selectedTicketId ?? undefined)
+  const { data: tickets = [], isLoading, isFetching, error, refetch } = useTickets(statusFilter === 'ALL' ? undefined : statusFilter)
+  const { data: selectedTicket, isFetching: isFetchingSelectedTicket } = useTicket(selectedTicketId ?? undefined)
   const createTicket = useCreateTicket()
   const updateStatus = useUpdateTicketStatus()
   const addComment = useAddTicketComment()
@@ -133,6 +134,14 @@ export default function TicketsPage() {
     }
   }, [showCreateForm, createTicket.isPending])
 
+  if (isLoading) {
+    return <AsyncState kind="loading" title="Loading tickets" message="Fetching support queue and recent conversations." />
+  }
+
+  if (error) {
+    return <AsyncState kind="error" title="Unable to load tickets" message={error.message} />
+  }
+
   return (
     <div className="tickets-page">
       <section className="tickets-page__hero">
@@ -162,54 +171,60 @@ export default function TicketsPage() {
               <h2>All Tickets</h2>
               <p>{filteredTickets.length} shown{filteredTickets.length !== tickets.length ? ` • ${tickets.length} total` : ''}</p>
             </div>
-            <div className="tickets-panel__toolbar-controls">
-              <input
-                className="tickets-panel__search"
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search title, description, or ID"
-                aria-label="Search tickets"
-              />
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="tickets-panel__select">
-                <option value="ALL">All statuses</option>
-                {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {formatLabel(status)}
-                  </option>
-                ))}
-              </select>
-              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="tickets-panel__select">
-                <option value="ALL">All categories</option>
-                {CATEGORY_OPTIONS.map((category) => (
-                  <option key={category} value={category}>
-                    {formatLabel(category)}
-                  </option>
-                ))}
-              </select>
-              <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="tickets-panel__select">
-                <option value="ALL">All priorities</option>
-                {PRIORITY_OPTIONS.map((priority) => (
-                  <option key={priority} value={priority}>
-                    {formatLabel(priority)}
-                  </option>
-                ))}
-              </select>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'priority')} className="tickets-panel__select">
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="priority">Priority first</option>
-              </select>
+            <div className="tickets-panel__toolbar-meta">
+              <span className="tickets-panel__sync-state" role="status" aria-live="polite">
+                {isFetching || isFetchingSelectedTicket ? 'Refreshing...' : 'Auto-refresh on'}
+              </span>
+              <button type="button" className="tickets-panel__refresh-btn" onClick={() => void refetch()}>
+                Refresh
+              </button>
             </div>
           </div>
 
-          {isLoading && <div className="tickets-panel__state">Loading tickets…</div>}
-          {error && <div className="tickets-panel__state tickets-panel__state--error">Failed to load tickets</div>}
+          <div className="tickets-panel__toolbar-controls">
+            <input
+              className="tickets-panel__search"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search title, description, or ID"
+              aria-label="Search tickets"
+            />
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="tickets-panel__select">
+              <option value="ALL">All statuses</option>
+              {STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>
+                  {formatLabel(status)}
+                </option>
+              ))}
+            </select>
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="tickets-panel__select">
+              <option value="ALL">All categories</option>
+              {CATEGORY_OPTIONS.map((category) => (
+                <option key={category} value={category}>
+                  {formatLabel(category)}
+                </option>
+              ))}
+            </select>
+            <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="tickets-panel__select">
+              <option value="ALL">All priorities</option>
+              {PRIORITY_OPTIONS.map((priority) => (
+                <option key={priority} value={priority}>
+                  {formatLabel(priority)}
+                </option>
+              ))}
+            </select>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'priority')} className="tickets-panel__select">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="priority">Priority first</option>
+            </select>
+          </div>
 
-          {!isLoading && !error && tickets.length === 0 && (
+          {tickets.length === 0 && (
             <div className="tickets-panel__state">No tickets yet. Create your first support ticket.</div>
           )}
-          {!isLoading && !error && tickets.length > 0 && filteredTickets.length === 0 && (
+          {tickets.length > 0 && filteredTickets.length === 0 && (
             <div className="tickets-panel__state">No tickets match your current search and filters.</div>
           )}
 
@@ -220,6 +235,7 @@ export default function TicketsPage() {
                 key={ticket.id}
                 className={`ticket-row ${selectedTicketId === ticket.id ? 'ticket-row--active' : ''}`}
                 onClick={() => setSelectedTicketId(ticket.id)}
+                aria-pressed={selectedTicketId === ticket.id}
               >
                 <div className="ticket-row__top">
                   <span className="ticket-row__title">{ticket.title}</span>

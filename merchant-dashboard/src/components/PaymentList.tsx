@@ -8,7 +8,7 @@ import './PaymentList.css'
 export default function PaymentList() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [search, setSearch] = useState('')
-  const { data, isLoading, error } = usePayments(statusFilter || undefined)
+  const { data, isLoading, isFetching, error, refetch } = usePayments(statusFilter || undefined)
 
   if (isLoading) {
     return (
@@ -104,6 +104,14 @@ export default function PaymentList() {
           <div>
             <h3>Payment records</h3>
             <p>{filteredPayments.length} shown{filteredPayments.length !== payments.length ? ` • ${payments.length} total` : ''}</p>
+          </div>
+          <div className="payment-list__table-header-actions">
+            <span className="payment-list__sync-state" role="status" aria-live="polite">
+              {isFetching ? 'Refreshing...' : 'Auto-refresh on'}
+            </span>
+            <button type="button" className="payment-list__refresh-btn" onClick={() => void refetch()}>
+              Refresh
+            </button>
           </div>
         </div>
 

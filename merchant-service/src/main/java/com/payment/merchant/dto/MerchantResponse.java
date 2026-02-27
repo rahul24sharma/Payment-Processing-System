@@ -22,6 +22,7 @@ public class MerchantResponse {
     private Map<String, Object> notifications;
     private String status;
     private String riskProfile;
+    private String role;
     private Map<String, Object> settings;
     private Instant createdAt;
 }

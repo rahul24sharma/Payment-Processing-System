@@ -7,13 +7,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -36,7 +37,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 if (jwtUtil.validateToken(token)) {
                     UUID merchantId = jwtUtil.extractMerchantId(token);
-                    authenticateRequest(request, merchantId);
+                    String role = jwtUtil.extractRole(token);
+                    authenticateRequest(request, merchantId, role);
                     authenticated = true;
                 }
             } catch (Exception e) {
@@ -53,7 +55,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (merchantIdHeader != null && !merchantIdHeader.isBlank()) {
                 try {
                     UUID merchantId = UUID.fromString(merchantIdHeader);
-                    authenticateRequest(request, merchantId);
+                    String merchantRoleHeader = request.getHeader("X-Merchant-Role");
+                    if (merchantRoleHeader == null || merchantRoleHeader.isBlank()) {
+                        merchantRoleHeader = "ADMIN";
+                    }
+                    authenticateRequest(request, merchantId, merchantRoleHeader);
                 } catch (IllegalArgumentException ignored) {
                     // Let request continue unauthenticated; controller/security will reject invalid values.
                 }
@@ -63,12 +69,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private void authenticateRequest(HttpServletRequest request, UUID merchantId) {
+    private void authenticateRequest(HttpServletRequest request, UUID merchantId, String roleValue) {
+        MerchantRole role = MerchantRole.from(roleValue);
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
                         merchantId,
                         null,
-                        new ArrayList<>()
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role.name()))
                 );
 
         authentication.setDetails(
@@ -77,5 +84,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         request.setAttribute("merchantId", merchantId);
+        request.setAttribute("merchantRole", role.name());
     }
 }

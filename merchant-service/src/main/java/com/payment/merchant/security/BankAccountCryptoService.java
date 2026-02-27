@@ -46,6 +46,10 @@ public class BankAccountCryptoService {
         return activeKeyId != null && keyring.containsKey(activeKeyId);
     }
 
+    public String getActiveKeyId() {
+        return activeKeyId;
+    }
+
     public String encrypt(String plaintext) {
         if (plaintext == null || plaintext.isBlank()) {
             return plaintext;
@@ -109,6 +113,28 @@ public class BankAccountCryptoService {
 
     public boolean isEncrypted(String value) {
         return value != null && (value.startsWith(LEGACY_PREFIX) || value.startsWith(VERSIONED_PREFIX));
+    }
+
+    public boolean requiresReencryption(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        if (!isEncrypted(value)) {
+            return true;
+        }
+        if (value.startsWith(LEGACY_PREFIX)) {
+            return true;
+        }
+        ParsedCiphertext parsed = parseCiphertext(value);
+        return activeKeyId != null && !activeKeyId.equals(parsed.keyId());
+    }
+
+    public String reencryptToActive(String value) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        String plaintext = decryptIfEncrypted(value);
+        return encrypt(plaintext);
     }
 
     private void ensureConfigured() {

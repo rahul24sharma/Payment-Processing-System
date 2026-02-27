@@ -4,10 +4,11 @@ import AsyncState from '@/components/ui/AsyncState'
 
 interface Props {
   children: React.ReactNode
+  requiredRoles?: string[]
 }
 
-export default function ProtectedRoute({ children }: Props) {
-  const { isAuthenticated, loading } = useAuth()
+export default function ProtectedRoute({ children, requiredRoles }: Props) {
+  const { isAuthenticated, role, loading } = useAuth()
   
   if (loading) {
     return (
@@ -21,6 +22,19 @@ export default function ProtectedRoute({ children }: Props) {
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+
+  if (requiredRoles && requiredRoles.length > 0) {
+    const currentRole = role?.toUpperCase()
+    if (!currentRole || !requiredRoles.includes(currentRole)) {
+      return (
+        <AsyncState
+          kind="error"
+          title="Access denied"
+          message="Your role does not have permission to view this page."
+        />
+      )
+    }
   }
   
   return <>{children}</>

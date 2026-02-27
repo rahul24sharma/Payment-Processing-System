@@ -8,6 +8,7 @@ import com.payment.notification.repository.WebhookEndpointRepository;
 import com.payment.notification.repository.WebhookRepository;
 import com.payment.notification.service.EmailNotificationService;
 import com.payment.notification.service.SmsNotificationService;
+import com.payment.notification.service.ConsumerIdempotencyService;
 import com.payment.notification.service.WebhookDeliveryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class PaymentEventHandler {
     private final WebhookDeliveryService webhookDeliveryService;
     private final EmailNotificationService emailNotificationService;
     private final SmsNotificationService smsNotificationService;
+    private final ConsumerIdempotencyService consumerIdempotencyService;
     private final ObjectMapper objectMapper;
     
     /**
@@ -83,6 +85,12 @@ public class PaymentEventHandler {
 
         log.info("Received event for notifications: topic={}, type={}, merchantId={}, partition={}, offset={}",
             topic, eventType, merchantIdStr, partition, offset);
+
+        if (!consumerIdempotencyService.tryAcquire(topic, event, partition, offset)) {
+            log.info("Skipping duplicate event delivery: topic={}, type={}, partition={}, offset={}",
+                topic, eventType, partition, offset);
+            return;
+        }
 
         if (merchantIdStr == null || merchantIdStr.isBlank()) {
             log.warn("Skipping notification event without merchantId: topic={}, payload={}", topic, event);

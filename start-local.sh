@@ -9,15 +9,23 @@ LOG_DIR="$RUN_DIR/logs"
 
 mkdir -p "$PID_DIR" "$LOG_DIR"
 
+# Load local environment variables (e.g. JWT_SECRET, DB passwords) if present.
+if [[ -f "$ROOT_DIR/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT_DIR/.env"
+  set +a
+fi
+
 SERVICES=(
-  "eureka-server|8761|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
-  "merchant-service|8086|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
-  "fraud-service|8082|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
-  "payment-service|8081|env SPRING_DEVTOOLS_RESTART_ENABLED=false PAYMENT_KAFKA_ENABLED=true KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
-  "ledger-service|8083|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
-  "settlement-service|8084|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
-  "notification-service|8085|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
-  "api-gateway|8080|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
+  "eureka-server|8761|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
+  "merchant-service|8086|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.merchant.MerchantServiceApplication"
+  "fraud-service|8082|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.fraud.FraudServiceApplication"
+  "payment-service|8081|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false PAYMENT_KAFKA_ENABLED=true KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
+  "ledger-service|8083|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
+  "settlement-service|8084|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
+  "notification-service|8085|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
+  "api-gateway|8080|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
 )
 
 FRONTEND_NAME="merchant-dashboard"
@@ -62,11 +70,64 @@ wait_for_port() {
   return 1
 }
 
+wait_for_dependency_port() {
+  local port="$1"
+  local name="$2"
+  local timeout="${3:-40}"
+  local waited=0
+
+  while (( waited < timeout )); do
+    if is_port_busy "$port"; then
+      return 0
+    fi
+    sleep 2
+    waited=$(( waited + 2 ))
+  done
+
+  echo "Dependency not ready: $name on port $port"
+  return 1
+}
+
+wait_for_kafka_dependency() {
+  local timeout="${1:-40}"
+  local waited=0
+
+  while (( waited < timeout )); do
+    if is_port_busy 29092 || is_port_busy 9092; then
+      return 0
+    fi
+    sleep 2
+    waited=$(( waited + 2 ))
+  done
+
+  echo "Dependency not ready: Kafka on port 9092 or 29092"
+  return 1
+}
+
+wait_for_http_health() {
+  local port="$1"
+  local health_path="$2"
+  local timeout="${3:-90}"
+  local waited=0
+  local url="http://localhost:${port}${health_path}"
+
+  while (( waited < timeout )); do
+    if curl -fsS "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+    waited=$(( waited + 2 ))
+  done
+
+  return 1
+}
+
 start_process() {
   local name="$1"
   local port="$2"
   local workdir="$3"
   local cmd="$4"
+  local health_path="${5:-}"
   local pid_file="$PID_DIR/$name.pid"
   local log_file="$LOG_DIR/$name.log"
   local wrapper_pid=""
@@ -75,14 +136,31 @@ start_process() {
     local existing_pid
     existing_pid="$(cat "$pid_file" 2>/dev/null || true)"
     if [[ -n "$existing_pid" ]] && is_pid_running "$existing_pid"; then
-      echo "Skipping $name (already running, pid $existing_pid)"
-      return 0
+      if is_port_busy "$port"; then
+        echo "Skipping $name (already running, pid $existing_pid)"
+        return 0
+      fi
+      echo "Cleaning stale $name process record (pid $existing_pid not serving port $port)"
+      kill "$existing_pid" >/dev/null 2>&1 || true
     fi
     rm -f "$pid_file"
   fi
 
   if is_port_busy "$port"; then
-    echo "Skipping $name (port $port already in use)"
+    local listener_pid
+    listener_pid="$(get_port_pid "$port" || true)"
+    if [[ -n "$listener_pid" ]]; then
+      echo "$listener_pid" >"$pid_file"
+      echo "Port $port already in use for $name (pid $listener_pid)"
+      if [[ -n "$health_path" ]] && ! wait_for_http_health "$port" "$health_path" 8; then
+        echo "  error: $name health endpoint is not ready while port is occupied"
+        return 1
+      fi
+      echo "  using existing healthy process"
+    else
+      echo "Port $port already in use for $name"
+      return 1
+    fi
     return 0
   fi
 
@@ -107,6 +185,14 @@ start_process() {
       echo "  pid=$listener_pid (listener) log=$log_file"
     else
       echo "  pid=$wrapper_pid (wrapper) log=$log_file"
+    fi
+
+    if [[ -n "$health_path" ]]; then
+      if wait_for_http_health "$port" "$health_path" 120; then
+        echo "  health=ok ($health_path)"
+      else
+        echo "  warning: health endpoint did not become ready for $name"
+      fi
     fi
   else
     # Some failures happen after a long Spring startup; preserve log path for debugging.
@@ -137,9 +223,43 @@ print_preflight() {
   echo
 }
 
+verify_dependencies_or_exit() {
+  local dep_failures=0
+
+  echo "Verifying infrastructure dependencies..."
+  wait_for_dependency_port 5432 "PostgreSQL" 30 || dep_failures=$((dep_failures + 1))
+  wait_for_dependency_port 6379 "Redis" 30 || dep_failures=$((dep_failures + 1))
+  wait_for_kafka_dependency 30 || dep_failures=$((dep_failures + 1))
+
+  if (( dep_failures > 0 )); then
+    echo
+    echo "Dependency checks failed. Start infra first, then rerun ./start-local.sh"
+    exit 1
+  fi
+  echo "All infrastructure dependencies are reachable."
+  echo
+}
+
+verify_security_env_or_exit() {
+  local jwt_secret="${JWT_SECRET:-}"
+
+  if [[ -z "$jwt_secret" ]]; then
+    echo "Missing JWT_SECRET in environment/.env"
+    echo "Generate one with: openssl rand -base64 32"
+    exit 1
+  fi
+
+  if [[ "${#jwt_secret}" -lt 32 ]]; then
+    echo "JWT_SECRET is too short (${#jwt_secret} chars). Use at least 32 characters."
+    echo "Generate one with: openssl rand -base64 32"
+    exit 1
+  fi
+}
+
 main() {
   require_cmd bash
   require_cmd lsof
+  require_cmd curl
   require_cmd node
   require_cmd npm
   require_cmd java
@@ -155,13 +275,15 @@ main() {
   fi
 
   print_preflight
+  verify_dependencies_or_exit
+  verify_security_env_or_exit
 
   local failed_services=()
 
   echo "Starting backend services..."
   for entry in "${SERVICES[@]}"; do
-    IFS="|" read -r name port cmd <<< "$entry"
-    if ! start_process "$name" "$port" "$name" "$cmd"; then
+    IFS="|" read -r name port health_path cmd <<< "$entry"
+    if ! start_process "$name" "$port" "$name" "$cmd" "$health_path"; then
       failed_services+=("$name")
     fi
     sleep 2
@@ -169,7 +291,7 @@ main() {
 
   echo
   echo "Starting frontend ($FRONTEND_NAME)..."
-  if ! start_process "$FRONTEND_NAME" "$FRONTEND_PORT" "$FRONTEND_NAME" "$FRONTEND_CMD"; then
+  if ! start_process "$FRONTEND_NAME" "$FRONTEND_PORT" "$FRONTEND_NAME" "$FRONTEND_CMD" "/"; then
     failed_services+=("$FRONTEND_NAME")
   fi
 

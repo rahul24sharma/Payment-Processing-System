@@ -65,6 +65,7 @@ logging:
 
 merchant:
   security:
+    admin-maintenance-token: ${MERCHANT_ADMIN_MAINTENANCE_TOKEN:}
     bank-account-encryption-key: ${MERCHANT_BANK_ACCOUNT_ENCRYPTION_KEY:}
     bank-account-encryption:
       active-key-id: ${MERCHANT_BANK_ACCOUNT_ENCRYPTION_ACTIVE_KEY_ID:}

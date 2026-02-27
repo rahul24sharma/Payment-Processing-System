@@ -1,0 +1,38 @@
+groups:
+  - name: platform-health
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is down"
+          description: "{{ $labels.job }} has been unreachable for more than 2 minutes."
+
+      - alert: Gateway5xxSpike
+        expr: sum(increase(http_server_requests_seconds_count{application="api-gateway",status=~"5.."}[5m])) > 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API gateway 5xx responses are elevated"
+          description: "api-gateway returned more than 20 5xx responses in the last 5 minutes."
+
+      - alert: AuthFailuresSpike
+        expr: sum(increase(http_server_requests_seconds_count{application="merchant-service",uri="/api/v1/auth/login",status="401"}[10m])) > 15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Login failures increased"
+          description: "merchant-service login endpoint has elevated 401 responses."
+
+      - alert: WebhookFailuresSpike
+        expr: sum(increase(http_server_requests_seconds_count{application="payment-service",uri="/api/v1/webhooks/stripe",status=~"4..|5.."}[10m])) > 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Stripe webhook failures increased"
+          description: "payment-service webhook endpoint is returning elevated error responses."

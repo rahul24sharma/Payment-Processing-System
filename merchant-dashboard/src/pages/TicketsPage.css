@@ -86,6 +86,28 @@
   margin-bottom: 0.75rem;
 }
 
+.tickets-panel__toolbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tickets-panel__sync-state {
+  color: #637282;
+  font-size: 0.8rem;
+}
+
+.tickets-panel__refresh-btn {
+  border: 1px solid #d8e0e8;
+  background: #fff;
+  color: #2a3a4b;
+  border-radius: 10px;
+  padding: 0.42rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .tickets-panel__toolbar h2 { margin: 0; font-size: 1rem; }
 .tickets-panel__toolbar p { margin: 0.2rem 0 0; color: #637282; font-size: 0.85rem; }
 
@@ -140,6 +162,11 @@
   background: #fcfdff;
   padding: 0.85rem;
   cursor: pointer;
+}
+
+.ticket-row:focus-visible {
+  outline: 3px solid rgba(23, 92, 211, 0.25);
+  outline-offset: 2px;
 }
 
 .ticket-row--active {
@@ -623,6 +650,11 @@
 
   .tickets-panel__toolbar {
     flex-direction: column;
+  }
+
+  .tickets-panel__toolbar-meta {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .tickets-panel__toolbar-controls {
