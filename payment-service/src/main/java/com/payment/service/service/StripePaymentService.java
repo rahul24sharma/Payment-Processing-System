@@ -65,6 +65,9 @@ public class StripePaymentService {
                 .setAmount(payment.getAmount().getAmountInCents())
                 .setCurrency(payment.getAmount().getCurrency().toLowerCase())
                 .setCaptureMethod(PaymentIntentCreateParams.CaptureMethod.MANUAL) // Authorize only
+                // Do not rely on account-level automatic payment methods toggle.
+                // Explicitly support card for this flow.
+                .addPaymentMethodType("card")
                 .setConfirm(true)  // Confirm immediately
                 .setPaymentMethod(stripePaymentMethodId)
                 .putMetadata("payment_id", payment.getId().toString())

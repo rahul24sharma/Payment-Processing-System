@@ -84,28 +84,30 @@ export default function ApiKeysPage() {
 
           <div className="api-keys-page__snippet-card">
             <h4>3. Test Card Numbers</h4>
-            <table className="api-keys-page__cards-table">
-              <thead>
-                <tr>
-                  <th>Card Number</th>
-                  <th>Result</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>4242 4242 4242 4242</code></td>
-                  <td className="api-keys-page__result--success">Success</td>
-                </tr>
-                <tr>
-                  <td><code>4000 0000 0000 0002</code></td>
-                  <td className="api-keys-page__result--danger">Card Declined</td>
-                </tr>
-                <tr>
-                  <td><code>4000 0000 0000 9995</code></td>
-                  <td className="api-keys-page__result--danger">Insufficient Funds</td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="api-keys-page__cards-table-wrap">
+              <table className="api-keys-page__cards-table">
+                <thead>
+                  <tr>
+                    <th>Card Number</th>
+                    <th>Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>4242 4242 4242 4242</code></td>
+                    <td className="api-keys-page__result--success">Success</td>
+                  </tr>
+                  <tr>
+                    <td><code>4000 0000 0000 0002</code></td>
+                    <td className="api-keys-page__result--danger">Card Declined</td>
+                  </tr>
+                  <tr>
+                    <td><code>4000 0000 0000 9995</code></td>
+                    <td className="api-keys-page__result--danger">Insufficient Funds</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>

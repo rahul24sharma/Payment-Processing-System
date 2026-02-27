@@ -9,6 +9,17 @@ export default function PaymentList() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [search, setSearch] = useState('')
   const { data, isLoading, isFetching, error, refetch } = usePayments(statusFilter || undefined)
+  const payments = data?.data || []
+  const searchTerm = search.trim().toLowerCase()
+
+  const filteredPayments = useMemo(() => {
+    if (!searchTerm) return payments
+    return payments.filter((payment) => {
+      const idMatch = payment.id.toLowerCase().includes(searchTerm)
+      const emailMatch = payment.customer?.email?.toLowerCase().includes(searchTerm)
+      return idMatch || emailMatch
+    })
+  }, [payments, searchTerm])
 
   if (isLoading) {
     return (
@@ -29,18 +40,6 @@ export default function PaymentList() {
       />
     )
   }
-
-  const payments = data?.data || []
-  const searchTerm = search.trim().toLowerCase()
-
-  const filteredPayments = useMemo(() => {
-    if (!searchTerm) return payments
-    return payments.filter((payment) => {
-      const idMatch = payment.id.toLowerCase().includes(searchTerm)
-      const emailMatch = payment.customer?.email?.toLowerCase().includes(searchTerm)
-      return idMatch || emailMatch
-    })
-  }, [payments, searchTerm])
 
   const summary = {
     total: payments.length,
@@ -127,56 +126,84 @@ export default function PaymentList() {
             }
           />
         ) : (
-          <div className="payment-list__table-wrap">
-            <table className="payment-list__table">
-              <thead>
-                <tr>
-                  <th>Payment</th>
-                  <th>Customer</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPayments.map((payment) => (
-                  <tr key={payment.id}>
-                    <td>
-                      <div className="payment-list__primary-cell">
-                        <Link to={`/payments/${payment.id}`} className="payment-list__id-link">
-                          {payment.id.substring(0, 8)}...
-                        </Link>
-                        <span className="payment-list__subtle">{payment.id}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="payment-list__primary-cell">
-                        <span>{payment.customer?.email || 'N/A'}</span>
-                        {payment.customer?.name && (
-                          <span className="payment-list__subtle">{payment.customer.name}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="payment-list__amount">
-                      {formatCurrency(payment.amount, payment.currency)}
-                    </td>
-                    <td>
-                      <span className={`payment-list__status payment-list__status--${payment.status}`}>
-                        {formatStatus(payment.status)}
-                      </span>
-                    </td>
-                    <td>{formatDate(payment.createdAt)}</td>
-                    <td>
-                      <Link to={`/payments/${payment.id}`} className="payment-list__view-btn">
-                        View
-                      </Link>
-                    </td>
+          <>
+            <div className="payment-list__table-wrap">
+              <table className="payment-list__table">
+                <thead>
+                  <tr>
+                    <th>Payment</th>
+                    <th>Customer</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredPayments.map((payment) => (
+                    <tr key={payment.id}>
+                      <td>
+                        <div className="payment-list__primary-cell">
+                          <Link to={`/payments/${payment.id}`} className="payment-list__id-link">
+                            {payment.id.substring(0, 8)}...
+                          </Link>
+                          <span className="payment-list__subtle">{payment.id}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="payment-list__primary-cell">
+                          <span>{payment.customer?.email || 'N/A'}</span>
+                          {payment.customer?.name && (
+                            <span className="payment-list__subtle">{payment.customer.name}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="payment-list__amount">
+                        {formatCurrency(payment.amount, payment.currency)}
+                      </td>
+                      <td>
+                        <span className={`payment-list__status payment-list__status--${payment.status}`}>
+                          {formatStatus(payment.status)}
+                        </span>
+                      </td>
+                      <td>{formatDate(payment.createdAt)}</td>
+                      <td>
+                        <Link to={`/payments/${payment.id}`} className="payment-list__view-btn">
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="payment-list__mobile">
+              {filteredPayments.map((payment) => (
+                <article key={`mobile-${payment.id}`} className="payment-list__mobile-card">
+                  <div className="payment-list__mobile-row">
+                    <Link to={`/payments/${payment.id}`} className="payment-list__id-link">
+                      {payment.id.substring(0, 8)}...
+                    </Link>
+                    <span className={`payment-list__status payment-list__status--${payment.status}`}>
+                      {formatStatus(payment.status)}
+                    </span>
+                  </div>
+                  <div className="payment-list__mobile-meta">
+                    <span className="payment-list__subtle">{payment.id}</span>
+                    <span>{payment.customer?.email || 'N/A'}</span>
+                    <strong className="payment-list__amount">
+                      {formatCurrency(payment.amount, payment.currency)}
+                    </strong>
+                    <span className="payment-list__subtle">{formatDate(payment.createdAt)}</span>
+                  </div>
+                  <Link to={`/payments/${payment.id}`} className="payment-list__view-btn">
+                    View payment
+                  </Link>
+                </article>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

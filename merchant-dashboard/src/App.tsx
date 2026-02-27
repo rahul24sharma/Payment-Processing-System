@@ -181,6 +181,24 @@ function AppContent() {
 
           <div className="shell-body">
             <aside className={`sidebar ${sidebarOpen ? 'sidebar--open' : ''}`}>
+              <div className="sidebar__mobile-main">
+                <div className="sidebar__section-title">Main</div>
+                <nav className="sidebar__nav">
+                  {topNavItems.map((item) => (
+                    <NavLink
+                      key={`mobile-${item.to}`}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        `sidebar__link${isActive ? ' sidebar__link--active' : ''}`
+                      }
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </nav>
+              </div>
+
               <div className="sidebar__section-title">Workspace</div>
               <nav className="sidebar__nav">
                 {sidebarNavItems.map((item) => (

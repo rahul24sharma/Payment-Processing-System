@@ -12,6 +12,7 @@ import com.payment.notification.service.ConsumerIdempotencyService;
 import com.payment.notification.service.WebhookDeliveryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -26,6 +27,7 @@ import java.util.UUID;
 @Component
 @Slf4j
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "notification.kafka.enabled", havingValue = "true", matchIfMissing = true)
 public class PaymentEventHandler {
     
     private final WebhookEndpointRepository endpointRepository;

@@ -39,6 +39,7 @@ spring:
       fail-fast: false
       auto-create: false
     listener:
+      auto-startup: ${NOTIFICATION_KAFKA_ENABLED:true}
       missing-topics-fatal: false
 
 server:
@@ -72,6 +73,7 @@ logging:
 
 notification:
   kafka:
+    enabled: ${NOTIFICATION_KAFKA_ENABLED:true}
     topics:
       auto-create: ${NOTIFICATION_KAFKA_TOPICS_AUTO_CREATE:false}
   email:

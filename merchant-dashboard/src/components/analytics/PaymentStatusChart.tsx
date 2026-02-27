@@ -51,16 +51,17 @@ export default function PaymentStatusChart({ days }: Props) {
       </div>
 
       <div className="analytics-widget__chart-frame">
-        <ResponsiveContainer width="100%" height={280}>
+        <div className="analytics-pie-wrap">
+          <ResponsiveContainer width="100%" height={280}>
           <PieChart>
             <Pie
               data={chartData}
               cx="50%"
               cy="50%"
               labelLine={false}
-              outerRadius={92}
-              innerRadius={54}
-              paddingAngle={2}
+              outerRadius={96}
+              innerRadius={62}
+              paddingAngle={3}
               fill="#8884d8"
               dataKey="value"
             >
@@ -71,9 +72,21 @@ export default function PaymentStatusChart({ days }: Props) {
               />
             ))}
             </Pie>
-            <Tooltip />
+            <Tooltip
+              formatter={(value, _name, payload: any) => [
+                `${String(value)} (${payload?.payload?.percentLabel ?? ''})`,
+                'Payments',
+              ]}
+              contentStyle={{ borderRadius: 12, border: '1px solid rgba(15,23,42,0.12)', boxShadow: '0 12px 28px rgba(15,23,42,0.12)' }}
+              labelStyle={{ color: '#0f172a', fontWeight: 700 }}
+            />
           </PieChart>
         </ResponsiveContainer>
+          <div className="analytics-pie-center">
+            <strong>{data.reduce((sum, item) => sum + item.count, 0)}</strong>
+            <span>Total</span>
+          </div>
+        </div>
       </div>
 
       <div className="analytics-status-legend">

@@ -1,11 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js'
+import { loadStripe } from '@stripe/stripe-js'
+import type { StripeCardElementChangeEvent } from '@stripe/stripe-js'
 import { useCreatePayment } from '@/hooks/usePayments'
 import { paymentsApi } from '@/api/payments'
 import { useToast } from '@/contexts/ToastContext'
 import type { CreatePaymentRequest, Payment } from '@/types/payment'
 import './CreatePaymentForm.css'
 
-export default function CreatePaymentForm() {
+const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined
+const stripePromise = publishableKey ? loadStripe(publishableKey) : null
+
+function CreatePaymentFormInner() {
+  const stripe = useStripe()
+  const elements = useElements()
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [email, setEmail] = useState('')
@@ -20,42 +28,11 @@ export default function CreatePaymentForm() {
   const [lastPaymentStatus, setLastPaymentStatus] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [isFinalizingAuth, setIsFinalizingAuth] = useState(false)
-  const [stripeReady, setStripeReady] = useState(false)
-  const cardElementRef = useRef<StripeCardElement | null>(null)
-  const cardMountRef = useRef<HTMLDivElement | null>(null)
-  const stripeRef = useRef<StripeInstance | null>(null)
-  const stripeInitRef = useRef(false)
+  const [cardReady, setCardReady] = useState(false)
+  const secureContext = typeof window === 'undefined' ? true : window.isSecureContext
   
   const createPayment = useCreatePayment()
   const toast = useToast()
-
-  useEffect(() => {
-    if (stripeInitRef.current) return
-    if (!cardMountRef.current) return
-
-    const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined
-    if (!publishableKey || !window.Stripe) {
-      return
-    }
-
-    const stripe = window.Stripe(publishableKey)
-    const elements = stripe.elements()
-    const card = elements.create('card')
-    card.mount(cardMountRef.current)
-
-    stripeRef.current = stripe
-    cardElementRef.current = card
-    stripeInitRef.current = true
-    setStripeReady(true)
-
-    return () => {
-      card.destroy()
-      cardElementRef.current = null
-      stripeRef.current = null
-      stripeInitRef.current = false
-      setStripeReady(false)
-    }
-  }, [])
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -131,13 +108,17 @@ export default function CreatePaymentForm() {
     e.preventDefault()
     
     try {
-      if (!stripeRef.current || !cardElementRef.current) {
+      if (!stripe || !elements) {
         throw new Error('Stripe card form is not ready. Refresh and try again.')
       }
+      const cardElement = elements.getElement(CardElement)
+      if (!cardElement) {
+        throw new Error('Card input is unavailable. Refresh and try again.')
+      }
 
-      const paymentMethodResult = await stripeRef.current.createPaymentMethod({
+      const paymentMethodResult = await stripe.createPaymentMethod({
         type: 'card',
-        card: cardElementRef.current,
+        card: cardElement,
         billing_details: {
           name: name || undefined,
           email: email || undefined,
@@ -187,13 +168,13 @@ export default function CreatePaymentForm() {
       if (payment.nextAction?.type === 'use_stripe_sdk' && payment.nextAction.clientSecret) {
         setScaMessage('Additional authentication required. Opening Stripe authentication...')
 
-        if (!stripeRef.current) {
+        if (!stripe) {
           throw new Error(
             'Stripe is not initialized. Refresh and try again.'
           )
         }
 
-        const stripeResult = await stripeRef.current.confirmCardPayment(payment.nextAction.clientSecret)
+        const stripeResult = await stripe.confirmCardPayment(payment.nextAction.clientSecret)
 
         if (stripeResult.error) {
           throw new Error(stripeResult.error.message || 'Stripe authentication failed')
@@ -213,8 +194,9 @@ export default function CreatePaymentForm() {
       setScaMessage(null)
       setLastPaymentStatus(payment.status)
       
-      // Reset form
+      // Reset full form state after successful payment
       setAmount('')
+      setCurrency('USD')
       setEmail('')
       setName('')
       setAddressLine1('')
@@ -223,6 +205,10 @@ export default function CreatePaymentForm() {
       setState('')
       setPostalCode('')
       setCountry('IN')
+      setFormError(null)
+
+      // Clear Stripe card input so card number/expiry/cvc are wiped.
+      cardElement.clear()
     } catch (error: any) {
       setIsFinalizingAuth(false)
       setScaMessage(null)
@@ -241,7 +227,7 @@ export default function CreatePaymentForm() {
             <p className="cpf__eyebrow">Payment Request</p>
             <h2>Create payment intent</h2>
           </div>
-          <span className="cpf__badge">{stripeReady ? 'Stripe Ready' : 'Initializing Stripe...'}</span>
+          <span className="cpf__badge">{stripe && elements && cardReady ? 'Stripe Ready' : 'Initializing Stripe...'}</span>
         </div>
 
         <form className="cpf__form" onSubmit={handleSubmit}>
@@ -268,6 +254,7 @@ export default function CreatePaymentForm() {
                   onChange={(e) => setCurrency(e.target.value)}
                 >
                   <option value="USD">USD</option>
+                  <option value="INR">INR</option>
                   <option value="EUR">EUR</option>
                   <option value="GBP">GBP</option>
                 </select>
@@ -371,10 +358,41 @@ export default function CreatePaymentForm() {
 
           <section className="cpf__section">
             <h3>Card Details</h3>
-            <label className="cpf__field">
-              <span>Stripe Card Element</span>
-              <div className="cpf__card-element" ref={cardMountRef} />
-            </label>
+            {!secureContext && (
+              <div className="cpf__alert cpf__alert--info" role="status" aria-live="polite">
+                Secure context is required for best Stripe card entry behavior. Open the app on <strong>https://localhost:5173</strong>.
+              </div>
+            )}
+            <div className="cpf__field">
+              <span id="stripe-card-element-label">Stripe Card Element</span>
+              <div className="cpf__card-element" role="group" aria-labelledby="stripe-card-element-label">
+                <CardElement
+                  options={{
+                    hidePostalCode: true,
+                    style: {
+                      base: {
+                        fontSize: '16px',
+                        color: '#0f172a',
+                        '::placeholder': {
+                          color: '#94a3b8',
+                        },
+                      },
+                      invalid: {
+                        color: '#b42318',
+                      },
+                    },
+                  }}
+                  onReady={() => setCardReady(true)}
+                  onChange={(event: StripeCardElementChangeEvent) => {
+                    if (event.error?.message) {
+                      setFormError(event.error.message)
+                    } else if (formError && formError.toLowerCase().includes('card')) {
+                      setFormError(null)
+                    }
+                  }}
+                />
+              </div>
+            </div>
             <p className="cpf__hint">
               Use a Stripe test card like <strong>4242 4242 4242 4242</strong>. SCA test cards can be used to verify auth flows.
             </p>
@@ -384,11 +402,11 @@ export default function CreatePaymentForm() {
             <button
               className="cpf__submit"
               type="submit"
-              disabled={createPayment.isPending || isFinalizingAuth || !stripeReady}
+              disabled={createPayment.isPending || isFinalizingAuth || !stripe || !elements || !cardReady}
             >
               {createPayment.isPending || isFinalizingAuth
                 ? 'Processing...'
-                : !stripeReady
+                : !stripe || !elements || !cardReady
                   ? 'Loading Card Form...'
                   : 'Create Payment'}
             </button>
@@ -404,5 +422,21 @@ export default function CreatePaymentForm() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function CreatePaymentForm() {
+  if (!publishableKey || !stripePromise) {
+    return (
+      <div className="cpf__alert cpf__alert--error" role="alert" aria-live="assertive">
+        Stripe is not configured. Set <code>VITE_STRIPE_PUBLISHABLE_KEY</code> and restart the frontend.
+      </div>
+    )
+  }
+
+  return (
+    <Elements stripe={stripePromise}>
+      <CreatePaymentFormInner />
+    </Elements>
   )
 }

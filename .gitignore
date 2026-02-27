@@ -13,3 +13,6 @@ target/
 
 # Environment variables
 .env
+
+# Local dev TLS certificates
+merchant-dashboard/certs/*.pem

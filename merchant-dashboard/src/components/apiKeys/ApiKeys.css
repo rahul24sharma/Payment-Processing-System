@@ -161,16 +161,24 @@
 .api-keys-list {
   display: grid;
   gap: 16px;
+  min-width: 0;
 }
 
 .api-keys-list__section {
   display: grid;
   gap: 12px;
+  min-width: 0;
+}
+
+.api-keys-panel__body {
+  padding: 12px;
+  min-width: 0;
 }
 
 .api-keys-list__cards {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .api-keys-list__card {
@@ -247,6 +255,8 @@
   color: #0f172a;
   padding: 10px 12px;
   font-size: 12px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .api-keys-list__meta-grid {
@@ -534,8 +544,25 @@
 }
 
 @media (max-width: 720px) {
+  .api-keys-panel__header {
+    flex-direction: column;
+  }
+
+  .api-keys-panel__meta {
+    align-self: flex-start;
+  }
+
   .api-keys-list__row {
     flex-direction: column;
+  }
+
+  .api-keys-list__revoke-btn {
+    width: 100%;
+  }
+
+  .api-keys-list__meta-grid {
+    display: grid;
+    gap: 8px;
   }
 
   .api-key-modal {

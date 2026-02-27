@@ -47,7 +47,7 @@ export default function ApiKeysList() {
             <div className="api-keys-panel__meta">{activeKeys.length} active</div>
           </div>
 
-          <div style={{ padding: '12px' }}>
+          <div className="api-keys-panel__body">
         {activeKeys.length === 0 ? (
           <AsyncState
             kind="empty"
@@ -122,7 +122,7 @@ export default function ApiKeysList() {
               <div className="api-keys-panel__meta">{revokedKeys.length} revoked</div>
             </div>
 
-            <div className="api-keys-list__cards" style={{ padding: '12px' }}>
+            <div className="api-keys-list__cards api-keys-panel__body">
               {revokedKeys.map((apiKey: ApiKey) => (
                 <div key={apiKey.id} className="api-keys-list__card api-keys-list__card--revoked">
                   <div className="api-keys-list__main">

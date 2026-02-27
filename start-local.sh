@@ -21,12 +21,14 @@ SERVICES=(
   "eureka-server|8761|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
   "merchant-service|8086|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.merchant.MerchantServiceApplication"
   "fraud-service|8082|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.fraud.FraudServiceApplication"
-  "payment-service|8081|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false PAYMENT_KAFKA_ENABLED=true KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
-  "ledger-service|8083|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
-  "settlement-service|8084|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
-  "notification-service|8085|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
+  "payment-service|8081|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false PAYMENT_KAFKA_ENABLED=${PAYMENT_KAFKA_ENABLED:-true} KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
+  "ledger-service|8083|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.ledger.LedgerServiceApplication"
+  "settlement-service|8084|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.settlement.SettlementServiceApplication"
+  "notification-service|8085|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.notification.NotificationServiceApplication"
   "api-gateway|8080|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
 )
+
+KAFKA_DEPENDENT_SERVICES=("ledger-service" "settlement-service" "notification-service")
 
 FRONTEND_NAME="merchant-dashboard"
 FRONTEND_PORT="5173"
@@ -120,6 +122,16 @@ wait_for_http_health() {
   done
 
   return 1
+}
+
+cleanup_stale_compiled_classes() {
+  local service_dir="$1"
+  local stale_dir="$ROOT_DIR/$service_dir/target/classes/com/payment 2"
+
+  if [[ -d "$stale_dir" ]]; then
+    echo "Cleaning stale compiled classes for $service_dir (target/classes/com/payment 2)"
+    rm -rf "$stale_dir"
+  fi
 }
 
 start_process() {
@@ -225,11 +237,16 @@ print_preflight() {
 
 verify_dependencies_or_exit() {
   local dep_failures=0
+  local skip_kafka_check="${SKIP_KAFKA_CHECK:-false}"
 
   echo "Verifying infrastructure dependencies..."
   wait_for_dependency_port 5432 "PostgreSQL" 30 || dep_failures=$((dep_failures + 1))
   wait_for_dependency_port 6379 "Redis" 30 || dep_failures=$((dep_failures + 1))
-  wait_for_kafka_dependency 30 || dep_failures=$((dep_failures + 1))
+  if [[ "$skip_kafka_check" == "true" ]]; then
+    echo "Skipping Kafka dependency check (SKIP_KAFKA_CHECK=true)"
+  else
+    wait_for_kafka_dependency 30 || dep_failures=$((dep_failures + 1))
+  fi
 
   if (( dep_failures > 0 )); then
     echo
@@ -238,6 +255,25 @@ verify_dependencies_or_exit() {
   fi
   echo "All infrastructure dependencies are reachable."
   echo
+}
+
+should_skip_service() {
+  local service_name="$1"
+  local skip_kafka_check="${SKIP_KAFKA_CHECK:-false}"
+  local start_kafka_services_without_broker="${START_KAFKA_SERVICES_WITHOUT_BROKER:-false}"
+  if [[ "$skip_kafka_check" != "true" ]]; then
+    return 1
+  fi
+  if [[ "$start_kafka_services_without_broker" == "true" ]]; then
+    return 1
+  fi
+
+  for kafka_service in "${KAFKA_DEPENDENT_SERVICES[@]}"; do
+    if [[ "$service_name" == "$kafka_service" ]]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 verify_security_env_or_exit() {
@@ -278,11 +314,29 @@ main() {
   verify_dependencies_or_exit
   verify_security_env_or_exit
 
+  # Guard against stale malformed package outputs from previous local runs.
+  cleanup_stale_compiled_classes "notification-service"
+  cleanup_stale_compiled_classes "settlement-service"
+
+  if [[ "${SKIP_KAFKA_CHECK:-false}" == "true" ]] && [[ -z "${PAYMENT_KAFKA_ENABLED:-}" ]]; then
+    export PAYMENT_KAFKA_ENABLED=false
+    export LEDGER_KAFKA_ENABLED=false
+    export NOTIFICATION_KAFKA_ENABLED=false
+    export START_KAFKA_SERVICES_WITHOUT_BROKER=true
+    echo "Kafka-light mode enabled: PAYMENT_KAFKA_ENABLED=false"
+    echo "Kafka consumers disabled for local mode: LEDGER_KAFKA_ENABLED=false, NOTIFICATION_KAFKA_ENABLED=false"
+    echo "All services will still start (Kafka-dependent consumers are disabled)."
+  fi
+
   local failed_services=()
 
   echo "Starting backend services..."
   for entry in "${SERVICES[@]}"; do
     IFS="|" read -r name port health_path cmd <<< "$entry"
+    if should_skip_service "$name"; then
+      echo "Skipping $name (requires Kafka; SKIP_KAFKA_CHECK=true)"
+      continue
+    fi
     if ! start_process "$name" "$port" "$name" "$cmd" "$health_path"; then
       failed_services+=("$name")
     fi
@@ -291,7 +345,7 @@ main() {
 
   echo
   echo "Starting frontend ($FRONTEND_NAME)..."
-  if ! start_process "$FRONTEND_NAME" "$FRONTEND_PORT" "$FRONTEND_NAME" "$FRONTEND_CMD" "/"; then
+  if ! start_process "$FRONTEND_NAME" "$FRONTEND_PORT" "$FRONTEND_NAME" "$FRONTEND_CMD"; then
     failed_services+=("$FRONTEND_NAME")
   fi
 

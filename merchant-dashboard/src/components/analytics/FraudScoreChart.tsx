@@ -38,12 +38,25 @@ export default function FraudScoreChart({ days }: Props) {
 
       <div className="analytics-widget__chart-frame">
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="range" />
-          <YAxis />
-          <Tooltip />
-          <Bar dataKey="count" name="Payments">
+          <BarChart data={data} margin={{ top: 12, right: 8, left: 0, bottom: 8 }}>
+          <CartesianGrid strokeDasharray="4 6" vertical={false} stroke="rgba(100, 116, 139, 0.25)" />
+          <XAxis
+            dataKey="range"
+            tick={{ fill: '#64748b', fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tick={{ fill: '#64748b', fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Tooltip
+            formatter={(value) => [`${String(value)} payments`, 'Count']}
+            contentStyle={{ borderRadius: 12, border: '1px solid rgba(15,23,42,0.12)', boxShadow: '0 12px 28px rgba(15,23,42,0.12)' }}
+            labelStyle={{ color: '#0f172a', fontWeight: 700 }}
+          />
+          <Bar dataKey="count" name="Payments" radius={[8, 8, 0, 0]}>
             {data.map((_, index) => (
               <Cell key={`cell-${index}`} fill={RISK_COLORS[index]} />
             ))}

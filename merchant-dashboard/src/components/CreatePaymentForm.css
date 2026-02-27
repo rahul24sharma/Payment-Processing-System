@@ -121,12 +121,22 @@
 .cpf__card-element {
   width: 100%;
   min-height: 44px;
-  display: flex;
-  align-items: center;
-  padding: 11px 12px;
+  display: block;
   border-radius: 10px;
   border: 1px solid #dbe2ea;
   background: #fff;
+  cursor: text;
+}
+
+.cpf__card-element .StripeElement {
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 12px;
+}
+
+.cpf__card-element iframe {
+  width: 100% !important;
+  pointer-events: auto !important;
 }
 
 .cpf__hint {
