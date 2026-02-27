@@ -46,6 +46,81 @@ jobs:
       - name: Build module (tests skipped)
         run: mvn -B -ntp -pl ${{ matrix.module }} -am clean package -DskipTests
 
+  backend-tests:
+    name: Backend Tests • ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: payment-service
+            test_cmd: mvn -B -ntp -pl payment-service -am test
+          - module: fraud-service
+            test_cmd: mvn -B -ntp -pl fraud-service -am test -Dtest=FraudServiceApplicationTests
+          - module: ledger-service
+            test_cmd: mvn -B -ntp -pl ledger-service -am test -Dtest=LedgerServiceApplicationTests
+          - module: settlement-service
+            test_cmd: mvn -B -ntp -pl settlement-service -am test -Dtest=SettlementServiceApplicationTests
+          - module: notification-service
+            test_cmd: mvn -B -ntp -pl notification-service -am test -Dtest=NotificationServiceApplicationTests
+          - module: merchant-service
+            test_cmd: mvn -B -ntp -pl merchant-service -am test -Dtest=MerchantServiceApplicationTests
+          - module: api-gateway
+            test_cmd: mvn -B -ntp -pl api-gateway -am test -Dtest=ApiGatewayApplicationTests
+          - module: eureka-server
+            test_cmd: mvn -B -ntp -pl eureka-server -am test -Dtest=EurekaServerApplicationTests
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: rahul
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rahul -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_PASSWORD: ci_password
+      TEST_POSTGRES_PASSWORD: ci_password
+      SPRING_PROFILES_ACTIVE: test
+      JWT_SECRET: ci-jwt-secret-32-bytes-minimum-value-for-tests-123456
+      STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+      EUREKA_CLIENT_ENABLED: "false"
+      PAYMENT_KAFKA_ENABLED: "false"
+      LEDGER_KAFKA_ENABLED: "false"
+      NOTIFICATION_KAFKA_ENABLED: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Initialize databases
+        run: |
+          psql "postgresql://rahul:ci_password@localhost:5432/postgres" -c "CREATE DATABASE payment_db;"
+          psql "postgresql://rahul:ci_password@localhost:5432/postgres" -c "CREATE DATABASE payment_db_test;"
+          psql "postgresql://rahul:ci_password@localhost:5432/postgres" -c "CREATE DATABASE fraud_db;"
+          psql "postgresql://rahul:ci_password@localhost:5432/postgres" -c "CREATE DATABASE ledger_db;"
+          psql "postgresql://rahul:ci_password@localhost:5432/postgres" -c "CREATE DATABASE settlement_db;"
+          psql "postgresql://rahul:ci_password@localhost:5432/postgres" -c "CREATE DATABASE notification_db;"
+          psql "postgresql://rahul:ci_password@localhost:5432/postgres" -c "CREATE DATABASE merchant_db;"
+
+      - name: Run tests
+        run: ${{ matrix.test_cmd }}
+
   frontend:
     name: Frontend • merchant-dashboard
     runs-on: ubuntu-latest
