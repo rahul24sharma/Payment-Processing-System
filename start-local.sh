@@ -21,10 +21,10 @@ SERVICES=(
   "eureka-server|8761|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
   "merchant-service|8086|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.merchant.MerchantServiceApplication"
   "fraud-service|8082|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.fraud.FraudServiceApplication"
-  "payment-service|8081|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false PAYMENT_KAFKA_ENABLED=${PAYMENT_KAFKA_ENABLED:-true} KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run"
-  "ledger-service|8083|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.ledger.LedgerServiceApplication"
-  "settlement-service|8084|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.settlement.SettlementServiceApplication"
-  "notification-service|8085|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=localhost:29092 ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.notification.NotificationServiceApplication"
+  "payment-service|8081|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false PAYMENT_KAFKA_ENABLED=${PAYMENT_KAFKA_ENABLED:-true} KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092} ./mvnw spring-boot:run"
+  "ledger-service|8083|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092} ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.ledger.LedgerServiceApplication"
+  "settlement-service|8084|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092} ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.settlement.SettlementServiceApplication"
+  "notification-service|8085|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092} ./mvnw spring-boot:run -Dspring-boot.run.mainClass=com.payment.notification.NotificationServiceApplication"
   "api-gateway|8080|/actuator/health|env SPRING_DEVTOOLS_RESTART_ENABLED=false ./mvnw spring-boot:run"
 )
 

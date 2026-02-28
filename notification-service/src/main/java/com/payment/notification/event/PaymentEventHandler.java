@@ -1,6 +1,7 @@
 package com.payment.notification.event;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.payment.notification.entity.Webhook;
 import com.payment.notification.entity.WebhookEndpoint;
@@ -46,10 +47,10 @@ public class PaymentEventHandler {
         groupId = "notification-service-group"
     )
     public void handlePaymentEvent(
-            @Payload Map<String, Object> event,
+            @Payload String payload,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset) {
-        
+        Map<String, Object> event = parseEvent(payload);
         processEvent("payment-events", event, partition, offset, true);
     }
 
@@ -58,9 +59,10 @@ public class PaymentEventHandler {
         groupId = "notification-service-group"
     )
     public void handleSettlementEvent(
-            @Payload Map<String, Object> event,
+            @Payload String payload,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset) {
+        Map<String, Object> event = parseEvent(payload);
         processEvent("settlement-events", event, partition, offset, false);
     }
 
@@ -69,10 +71,20 @@ public class PaymentEventHandler {
         groupId = "notification-service-group"
     )
     public void handleFraudEvent(
-            @Payload Map<String, Object> event,
+            @Payload String payload,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset) {
+        Map<String, Object> event = parseEvent(payload);
         processEvent("fraud-events", event, partition, offset, false);
+    }
+
+    private Map<String, Object> parseEvent(String payload) {
+        try {
+            return objectMapper.readValue(payload, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception ex) {
+            log.error("Failed to parse Kafka event payload as JSON object: payload={}", payload, ex);
+            throw new IllegalArgumentException("Invalid Kafka event payload", ex);
+        }
     }
 
     private void processEvent(
