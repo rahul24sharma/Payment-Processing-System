@@ -16,3 +16,7 @@ target/
 
 # Local dev TLS certificates
 merchant-dashboard/certs/*.pem
+
+# Local runtime artifacts
+.local-run/
+dump.rdb
