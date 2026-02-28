@@ -72,7 +72,7 @@ public class StripePaymentService {
                 .setPaymentMethod(stripePaymentMethodId)
                 .putMetadata("payment_id", payment.getId().toString())
                 .putMetadata("merchant_id", payment.getMerchantId().toString())
-                .setDescription("Payment via Payment System");
+                .setDescription("Payment via PulsePay");
 
             enrichIndiaExportFields(paramsBuilder, payment);
             PaymentIntentCreateParams params = paramsBuilder.build();

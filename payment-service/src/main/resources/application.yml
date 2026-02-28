@@ -1,6 +1,10 @@
 spring:
   application:
     name: payment-service
+  config:
+    import:
+      - optional:file:../.env[.properties]
+      - optional:file:.env[.properties]
 
   # Database Configuration - Payment Database
   datasource:

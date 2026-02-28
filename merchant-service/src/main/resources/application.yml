@@ -64,6 +64,10 @@ logging:
     org.hibernate.SQL: DEBUG
 
 merchant:
+  auth:
+    password-reset:
+      token-validity-minutes: ${MERCHANT_PASSWORD_RESET_TOKEN_VALIDITY_MINUTES:30}
+      expose-token-in-response: ${MERCHANT_PASSWORD_RESET_EXPOSE_TOKEN:true}
   security:
     admin-maintenance-token: ${MERCHANT_ADMIN_MAINTENANCE_TOKEN:}
     bank-account-encryption-key: ${MERCHANT_BANK_ACCOUNT_ENCRYPTION_KEY:}

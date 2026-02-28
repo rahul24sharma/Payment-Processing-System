@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting Payment Processing System..."
+echo "🚀 Starting PulsePay..."
 echo ""
 
 # Check if Docker is running

@@ -21,6 +21,24 @@ export interface AuthResponse {
   apiKey?: string
 }
 
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ForgotPasswordResponse {
+  message: string
+  resetToken?: string | null
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  newPassword: string
+}
+
+export interface ResetPasswordResponse {
+  message: string
+}
+
 export const authApi = {
   register: async (request: RegisterRequest): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/auth/register', request)
@@ -29,6 +47,16 @@ export const authApi = {
 
   login: async (request: LoginRequest): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/auth/login', request)
+    return response.data
+  },
+
+  forgotPassword: async (request: ForgotPasswordRequest): Promise<ForgotPasswordResponse> => {
+    const response = await apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', request)
+    return response.data
+  },
+
+  resetPassword: async (request: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
+    const response = await apiClient.post<ResetPasswordResponse>('/auth/reset-password', request)
     return response.data
   },
 

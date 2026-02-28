@@ -6,6 +6,7 @@ import './AuthPages.css'
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   
@@ -33,8 +34,8 @@ export default function LoginPage() {
         <aside className="auth-page__aside">
           <div>
             <div className="auth-page__brand">
-              <span className="auth-page__brand-mark">PS</span>
-              <span>Payment System</span>
+              <span className="auth-page__brand-mark">PP</span>
+              <span>PulsePay</span>
             </div>
             <div className="auth-page__aside-copy">
               <h1>Merchant operations in one place</h1>
@@ -82,14 +83,24 @@ export default function LoginPage() {
 
                 <div className="auth-form__field">
                   <label htmlFor="login-password">Password</label>
-                  <input
-                    id="login-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                  />
+                  <div className="auth-form__password-wrap">
+                    <input
+                      id="login-password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      className="auth-form__password-toggle"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -99,6 +110,9 @@ export default function LoginPage() {
             </form>
 
             <div className="auth-card__footer">
+              <div className="auth-card__forgot">
+                <Link to="/forgot-password">Forgot password?</Link>
+              </div>
               Don't have an account? <Link to="/register">Register</Link>
             </div>
           </div>

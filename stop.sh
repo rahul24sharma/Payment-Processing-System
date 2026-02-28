@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🛑 Stopping Payment Processing System..."
+echo "🛑 Stopping PulsePay..."
 docker compose down
 
 echo "✅ All services stopped"

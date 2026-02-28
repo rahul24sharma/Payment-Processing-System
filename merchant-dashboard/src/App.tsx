@@ -8,6 +8,8 @@ import './App.css'
 
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const CreatePaymentPage = lazy(() => import('./pages/CreatePaymentPage'))
 const PaymentsPage = lazy(() => import('./pages/PaymentsPage'))
@@ -98,8 +100,8 @@ function AppContent() {
                 ☰
               </button>
               <Link to="/dashboard" className="brand">
-                <span className="brand__mark">PS</span>
-                <span>Payment System</span>
+                <span className="brand__mark">PP</span>
+                <span>PulsePay</span>
               </Link>
               <nav className="topbar__nav" aria-label="Primary">
                 {topNavItems.map((item) => (
@@ -235,6 +237,8 @@ function AppContent() {
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           
           {/* Protected Routes */}
           <Route

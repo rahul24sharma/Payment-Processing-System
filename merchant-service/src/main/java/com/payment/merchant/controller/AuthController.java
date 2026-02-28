@@ -1,8 +1,12 @@
 package com.payment.merchant.controller;
 
 import com.payment.merchant.dto.AuthResponse;
+import com.payment.merchant.dto.ForgotPasswordRequest;
+import com.payment.merchant.dto.ForgotPasswordResponse;
 import com.payment.merchant.dto.LoginRequest;
 import com.payment.merchant.dto.RegisterRequest;
+import com.payment.merchant.dto.ResetPasswordRequest;
+import com.payment.merchant.dto.ResetPasswordResponse;
 import com.payment.merchant.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -45,5 +50,28 @@ public class AuthController {
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Merchant Service is UP");
+    }
+
+    @Operation(summary = "Request password reset")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ForgotPasswordResponse> forgotPassword(
+        @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        ForgotPasswordResponse response = authService.requestPasswordReset(request.getEmail());
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Reset password using token")
+    @PostMapping("/reset-password")
+    public ResponseEntity<ResetPasswordResponse> resetPassword(
+        @Valid @RequestBody ResetPasswordRequest request
+    ) {
+        try {
+            ResetPasswordResponse response =
+                authService.resetPassword(request.getToken(), request.getNewPassword());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
     }
 }

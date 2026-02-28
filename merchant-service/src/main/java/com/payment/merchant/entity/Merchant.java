@@ -42,6 +42,15 @@ public class Merchant {
     
     @Column(name = "api_key_prefix")
     private String apiKeyPrefix; // e.g., "sk_test_" or "sk_live_"
+
+    @Column(name = "password_reset_token_hash")
+    private String passwordResetTokenHash;
+
+    @Column(name = "password_reset_token_expires_at")
+    private Instant passwordResetTokenExpiresAt;
+
+    @Column(name = "password_reset_requested_at")
+    private Instant passwordResetRequestedAt;
     
     @Column(name = "status")
     @ColumnTransformer(write = "?::merchant_status")

@@ -9,6 +9,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [createdApiKey, setCreatedApiKey] = useState<string | null>(null)
@@ -72,8 +74,8 @@ export default function RegisterPage() {
         <aside className="auth-page__aside">
           <div>
             <div className="auth-page__brand">
-              <span className="auth-page__brand-mark">PS</span>
-              <span>Payment System</span>
+              <span className="auth-page__brand-mark">PP</span>
+              <span>PulsePay</span>
             </div>
             <div className="auth-page__aside-copy">
               <h1>Launch your merchant workspace</h1>
@@ -133,28 +135,48 @@ export default function RegisterPage() {
 
                 <div className="auth-form__field">
                   <label htmlFor="register-password">Password</label>
-                  <input
-                    id="register-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={8}
-                    autoComplete="new-password"
-                  />
+                  <div className="auth-form__password-wrap">
+                    <input
+                      id="register-password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="auth-form__password-toggle"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
                   <small className="auth-form__hint">Minimum 8 characters</small>
                 </div>
 
                 <div className="auth-form__field">
                   <label htmlFor="register-confirm-password">Confirm Password</label>
-                  <input
-                    id="register-confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    autoComplete="new-password"
-                  />
+                  <div className="auth-form__password-wrap">
+                    <input
+                      id="register-confirm-password"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="auth-form__password-toggle"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirmPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
                 </div>
               </div>
 

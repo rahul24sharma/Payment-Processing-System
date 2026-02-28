@@ -1,6 +1,6 @@
-# Payment Processing System
+# PulsePay
 
-Microservices-based payment platform with Spring Boot services and a React merchant dashboard.
+Microservices-based payment platform with Spring Boot services and the PulsePay merchant dashboard.
 
 [![CI](https://github.com/rahul24sharma/Payment-Processing-System/actions/workflows/ci.yml/badge.svg)](https://github.com/rahul24sharma/Payment-Processing-System/actions/workflows/ci.yml)
 [![Integration Tests](https://github.com/rahul24sharma/Payment-Processing-System/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/rahul24sharma/Payment-Processing-System/actions/workflows/integration-tests.yml)
@@ -9,7 +9,7 @@ Microservices-based payment platform with Spring Boot services and a React merch
 
 ```mermaid
 flowchart TD
-    UI[Merchant Dashboard<br/>React + Vite]
+    UI[PulsePay Dashboard<br/>React + Vite]
     GW[API Gateway<br/>:8080]
     EUREKA[Eureka Server<br/>:8761]
     KAFKA[Kafka]

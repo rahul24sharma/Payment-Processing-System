@@ -79,7 +79,7 @@ public class RateLimitConfig {
             // Optional fallback if some clients encode merchant in subject.
             String subject = claims.getSubject();
             return StringUtils.hasText(subject) ? subject.trim() : null;
-        } catch (JwtException | IllegalArgumentException ignored) {
+        } catch (RuntimeException ignored) {
             return null;
         }
     }
