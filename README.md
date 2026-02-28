@@ -1,37 +1,72 @@
 # Payment Processing System
 
-Microservices-based payment platform with Spring Boot backend services and a React merchant dashboard.
+Microservices-based payment platform with Spring Boot services and a React merchant dashboard.
 
-[![CI](https://github.com/yourusername/Payment-Processing-System/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/Payment-Processing-System/actions/workflows/ci.yml)
-[![Integration Tests](https://github.com/yourusername/Payment-Processing-System/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/yourusername/Payment-Processing-System/actions/workflows/integration-tests.yml)
+[![CI](https://github.com/rahul24sharma/Payment-Processing-System/actions/workflows/ci.yml/badge.svg)](https://github.com/rahul24sharma/Payment-Processing-System/actions/workflows/ci.yml)
+[![Integration Tests](https://github.com/rahul24sharma/Payment-Processing-System/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/rahul24sharma/Payment-Processing-System/actions/workflows/integration-tests.yml)
 
-## Architecture
+## Architecture Diagram
 
-```text
-Merchant Dashboard (React/Vite)
-           |
-           v
-      API Gateway (8080)
-           |
-  -----------------------------
-  |      |      |      |      |
-Payment Fraud Ledger Settlement Merchant Notification
-(8081) (8082) (8083)   (8084)   (8086)    (8085)
-           |
-           v
-      Kafka Event Bus
+```mermaid
+flowchart TD
+    UI[Merchant Dashboard<br/>React + Vite]
+    GW[API Gateway<br/>:8080]
+    EUREKA[Eureka Server<br/>:8761]
+    KAFKA[Kafka]
+    POSTGRES[(PostgreSQL)]
+    REDIS[(Redis)]
+
+    PAY[payment-service<br/>:8081]
+    FRD[fraud-service<br/>:8082]
+    LED[ledger-service<br/>:8083]
+    SETT[settlement-service<br/>:8084]
+    NOTIF[notification-service<br/>:8085]
+    MERCH[merchant-service<br/>:8086]
+
+    UI --> GW
+    GW --> PAY
+    GW --> FRD
+    GW --> LED
+    GW --> SETT
+    GW --> NOTIF
+    GW --> MERCH
+
+    PAY --> KAFKA
+    LED --> KAFKA
+    NOTIF --> KAFKA
+
+    PAY --> POSTGRES
+    FRD --> POSTGRES
+    LED --> POSTGRES
+    SETT --> POSTGRES
+    NOTIF --> POSTGRES
+    MERCH --> POSTGRES
+
+    PAY --> REDIS
+    FRD --> REDIS
+    GW --> REDIS
+
+    GW -. service discovery .-> EUREKA
+    PAY -. service discovery .-> EUREKA
+    FRD -. service discovery .-> EUREKA
+    LED -. service discovery .-> EUREKA
+    SETT -. service discovery .-> EUREKA
+    NOTIF -. service discovery .-> EUREKA
+    MERCH -. service discovery .-> EUREKA
 ```
 
 ## Service Boundaries
 
-- `api-gateway`: routing, request filtering, centralized entrypoint.
-- `payment-service`: payment lifecycle, Stripe integration, webhook status reconciliation.
-- `fraud-service`: fraud scoring and risk events.
-- `ledger-service`: accounting records for financial state transitions.
-- `settlement-service`: settlement/payout orchestration.
-- `merchant-service`: merchant auth, profile, API keys, settings.
-- `notification-service`: outbound notifications and webhook deliveries.
-- `merchant-dashboard`: merchant-facing UI for payments, refunds, tickets, webhooks, API keys.
+| Service | Responsibility |
+|---|---|
+| `api-gateway` | Single entrypoint, routing, auth forwarding, cross-cutting gateway behavior |
+| `payment-service` | Payment lifecycle (`create/auth/capture/refund`), Stripe integration, webhook reconciliation |
+| `fraud-service` | Risk/fraud scoring and decision signals |
+| `ledger-service` | Accounting entries and financial state tracking |
+| `settlement-service` | Settlement/payout workflows |
+| `merchant-service` | Merchant auth, profile/settings, API key management, ticketing |
+| `notification-service` | Notification delivery and downstream event consumption |
+| `merchant-dashboard` | Merchant-facing operations UI |
 
 ## Local Setup
 
@@ -40,22 +75,28 @@ Payment Fraud Ledger Settlement Merchant Notification
 - Java 21
 - Maven 3.9+
 - Node 20+
-- PostgreSQL (port `5432`)
-- Redis (port `6379`)
-- Kafka (port `9092` or `29092`)
+- PostgreSQL on `5432`
+- Redis on `6379`
+- Kafka on `9092` or `29092`
 
-### 1) Configure env
+### 1) Configure environment
 
-- Copy `.env.example` to `.env` and fill required secrets.
-- Use a JWT secret of at least 32 bytes.
+```bash
+cp .env.example .env
+```
 
-### 2) Start services
+Required minimum:
+
+- `JWT_SECRET` must be at least 32-byte equivalent for HS256.
+- Stripe values (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) should be test keys for local.
+
+### 2) Start backend stack
 
 ```bash
 ./start-local.sh
 ```
 
-### 3) Start dashboard
+### 3) Start frontend
 
 ```bash
 cd merchant-dashboard
@@ -63,28 +104,37 @@ npm ci
 npm run dev
 ```
 
+### 4) Stop stack
+
+```bash
+./stop-local.sh
+```
+
 ## CI Workflows
 
-- `ci.yml`: per-service build and test matrix (unit/service tests).
-- `integration-tests.yml`: infra-backed suite with Postgres + Redis + Kafka.
+- `ci.yml`:
+  - backend build matrix (all services)
+  - backend test matrix (service-level tests)
+  - frontend build (`merchant-dashboard`)
+- `integration-tests.yml`:
+  - infra-backed integration checks
 
-## End-to-End Reliability Flow (Manual)
+## End-to-End Demo Flow
 
-Run this clean flow before releases:
+Use this flow for release/demo validation:
 
-1. Register merchant and login.
-2. Create payment (`pending`/`requires_auth`).
-3. Complete authentication.
-4. Capture payment (`captured`).
-5. Create refund and verify refund status/history.
-6. Trigger Stripe webhook events and verify backend state sync.
-7. Create/update ticket and verify timeline/status updates.
+1. Register merchant and log in
+2. Create payment
+3. Complete auth / capture
+4. Create refund
+5. Trigger webhook and verify status sync
+6. Create/update ticket and verify timeline
 
-Reference checklist: `docs/e2e-reliability-checklist.md`.
+Full checklist: `docs/e2e-reliability-checklist.md`
 
-## Demo Flow Assets
+## Demo Screenshots / GIF
 
-Add screenshots/GIFs in `docs/demo/` and reference them here:
+Store and reference demo artifacts under `docs/demo/`:
 
 - `docs/demo/dashboard.png`
 - `docs/demo/create-payment.png`
@@ -92,26 +142,39 @@ Add screenshots/GIFs in `docs/demo/` and reference them here:
 - `docs/demo/refund-flow.png`
 - `docs/demo/webhook-events.png`
 
-## Security & Compliance Status
+See `docs/demo/README.md` for exact capture checklist.
 
-### Implemented
+## Security / Compliance Clarity
 
-- JWT auth with role support and audit logging hooks.
-- API key management.
-- Stripe webhook signature verification.
-- Idempotency controls in payment/event flows.
-- Field-level encryption for sensitive merchant bank account fields.
-- Encryption key versioning + re-encryption endpoint support.
+### Production-ready in this repo
 
-### Not Production-Complete Yet
+- Env-backed secret configuration (no required hardcoded credentials)
+- JWT auth + role checks foundation
+- Stripe webhook signature verification
+- Idempotency controls in payment/webhook paths
+- Sensitive bank-account field encryption + masking
+- Key versioning support + re-encryption maintenance endpoint
 
-- Managed KMS/HSM-backed key custody and rotation automation.
-- Full SOC2/PCI evidence program (controls, audit artifacts, policy lifecycle).
-- Full incident alerting/runbook automation across all services.
-- Comprehensive chaos/load/resilience certification under production traffic models.
+### Not production-complete yet
 
-See `docs/security-compliance-pass.md` for details.
+- Managed KMS/HSM custody and automated key rotation orchestration
+- Full SOC2/PCI evidence program and control attestations
+- Complete RBAC verification matrix across every admin endpoint/UI action
+- Full audit-log coverage validation for all sensitive operations
+- Operational SLO/alert maturity for all services and event pipelines
 
-## Notes
+### Runbooks / Policies
 
-This project is production-oriented in architecture, but still requires operational hardening and compliance evidence work before claiming enterprise production readiness.
+- Key rotation + re-encryption runbook: `docs/security-compliance-pass.md`
+- Env-only secret policy: `docs/security-compliance-pass.md`
+- Reliability and incident checks: `docs/operations-runbook.md`
+
+## RBAC / Audit Scope (Current)
+
+- RBAC is implemented at core auth/role levels and applied on key protected actions.
+- Audit logging hooks exist for sensitive flows.
+- Remaining hardening work is scope-completeness verification:
+  - ensure every admin-only endpoint is explicitly role-gated
+  - ensure every sensitive write action emits an auditable trail
+
+For detailed status and remaining gaps, use `docs/security-compliance-pass.md`.

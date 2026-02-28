@@ -191,3 +191,64 @@ Bank account values are now encrypted at the application layer, but key manageme
 3. Formal RBAC verification matrix across all admin endpoints
 4. Secret rotation automation checks in CI/CD and runtime health checks
 5. Compliance evidence package (SOC2/PCI controls, operational evidence, periodic reviews)
+
+---
+
+## Production Readiness Clarity
+
+### Production-ready now (engineering controls)
+
+1. Env-only secret wiring in service config
+2. Stripe webhook signature validation
+3. App-layer encryption for sensitive bank fields
+4. Key versioning with active-key writes + old-key reads
+5. Admin-safe re-encryption endpoint for controlled migration
+
+### Not production-complete yet (program/compliance controls)
+
+1. Managed KMS/HSM custody and automated rotation orchestration
+2. Full SOC2/PCI control evidence lifecycle
+3. Verified RBAC matrix across every admin endpoint/page
+4. Full audit log coverage and tamper-evidence guarantees
+5. Formal incident-response alerting maturity across all services
+
+## Env-Only Secrets Policy
+
+1. Never commit live secrets to git (`application*.yml`, source, docs, screenshots)
+2. Keep secrets only in:
+   - local `.env` (gitignored)
+   - CI secret store
+   - runtime secret manager
+3. Services must read secrets from env vars only
+4. Rotate any leaked secret immediately and invalidate old values
+
+## Key Rotation Runbook (Quick View)
+
+### Stripe webhook secret
+
+1. Create new `whsec_*`
+2. Update `STRIPE_WEBHOOK_SECRET`
+3. Restart `payment-service`
+4. Verify webhook delivery and signature acceptance
+5. Revoke old secret
+
+### Merchant bank-account encryption key
+
+1. Add new key to `MERCHANT_BANK_ACCOUNT_ENCRYPTION_KEYS`
+2. Set `MERCHANT_BANK_ACCOUNT_ENCRYPTION_ACTIVE_KEY_ID` to new key id
+3. Restart `merchant-service`
+4. Run re-encryption endpoint (dry-run, then execute)
+5. Remove old key after migration completion
+
+## RBAC / Audit Scope
+
+### Current scope
+
+1. Role-aware auth exists and is used on sensitive flows
+2. Audit logging hooks exist for sensitive write operations
+
+### Remaining scope hardening
+
+1. Verify every admin endpoint has explicit role guards
+2. Verify every sensitive action emits structured audit records
+3. Add periodic review checklist for RBAC/audit coverage drift
